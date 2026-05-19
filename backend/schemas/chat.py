@@ -6,8 +6,8 @@ from backend.schemas.job import JobCard
 
 
 class ChatRequestDTO(BaseModel):
-    user_id: int = Field(..., description="유저 ID")
-    message: str = Field(..., description="사용자 메시지", min_length=1)
+    user_id: int = Field(..., gt=0, description="유저 ID")
+    message: str = Field(..., min_length=1, max_length=1000, description="사용자 메시지")
 
 
 class ChatResponseDTO(BaseModel):

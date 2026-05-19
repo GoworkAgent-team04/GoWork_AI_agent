@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class UserRequestDTO(BaseModel):
-    user_id: int = Field(..., description="유저 ID")
+    user_id: int = Field(..., gt=0, description="유저 ID")
 
 
 class CareerInfo(BaseModel):
