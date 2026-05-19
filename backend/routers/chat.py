@@ -1,6 +1,6 @@
 import asyncio
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
 from agent.memory import memory
@@ -50,7 +50,7 @@ async def chat_stream(req: ChatRequestDTO):
 
 
 @router.delete("/chat/history", summary="대화 기록 초기화")
-async def clear_history(user_id: int):
+async def clear_history(user_id: int = Query(..., gt=0)):
     """
     특정 사용자의 대화 기록을 초기화합니다.
     """

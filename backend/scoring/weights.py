@@ -40,7 +40,8 @@ def load_weights() -> Weights:
     with open(_WEIGHTS_FILE) as f:
         data = json.load(f)
 
-    return Weights(**data)
+    allowed = {f.name for f in Weights.__dataclass_fields__.values()}
+    return Weights(**{k: v for k, v in data.items() if k in allowed})
 
 
 def save_weights(weights: Weights) -> None:

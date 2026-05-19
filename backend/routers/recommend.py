@@ -1,6 +1,6 @@
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 
 from backend.schemas.job import JobRequestDTO, JobResponseDTO
 from backend.services import recommend_service
@@ -10,12 +10,12 @@ router = APIRouter(tags=["Recommend"])
 
 @router.get("/recommend", response_model=JobResponseDTO, summary="공고 추천")
 async def recommend(
-    user_id: int,
+    user_id: int = Query(..., gt=0),
     region: Optional[str] = None,
     job_type: Optional[str] = None,
     physical_limit: Optional[bool] = None,
     work_type: Optional[str] = None,
-    salary_min: Optional[int] = None,
+    salary_min: Optional[int] = Query(None, ge=0),
 ):
     """
     LLM이 추출한 유저 선호도 파라미터 기반으로 공고를 추천합니다.

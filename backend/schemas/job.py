@@ -9,7 +9,7 @@ class JobRequestDTO(BaseModel):
     region: Optional[str] = Field(None, description="희망 근무 지역 (예: 강남구, 서울)")
     physical_limit: Optional[bool] = Field(None, description="신체 제약 여부")
     work_type: Optional[str] = Field(None, description="근무 형태 (part_time | full_time | any)")
-    salary_min: Optional[int] = Field(None, description="최소 희망 급여 (원, 예: 1500000)")
+    salary_min: Optional[int] = Field(None, ge=0, description="최소 희망 급여 (원, 예: 1500000)")
 
 
 class JobCard(BaseModel):

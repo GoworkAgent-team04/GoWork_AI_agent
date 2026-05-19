@@ -47,7 +47,8 @@ def search_jobs(params: Dict[str, Any]) -> List[Dict[str, Any]]:
         if params.get("physical_limit") is True:
             query += " AND (jp.physical_level IN ('LOW', 'MID') OR jp.physical_level IS NULL)"
 
-        query += f" ORDER BY jp.collected_at DESC LIMIT {config.JOB_CANDIDATE_POOL}"
+        query += " ORDER BY jp.collected_at DESC LIMIT :limit"
+        query_params["limit"] = config.JOB_CANDIDATE_POOL
 
         result = db.execute(text(query), query_params)
         return [dict(row._mapping) for row in result]

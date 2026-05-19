@@ -32,9 +32,10 @@ def _delta(base: float, similarity: float, match_coeff: float, mismatch_coeff: f
     return base * coeff
 
 
-def calc_raw_score(job: Dict[str, Any], params: JobRequestDTO) -> float:
+def calc_raw_score(job: Dict[str, Any], params: JobRequestDTO, w=None) -> float:
     """파라미터 유무 기반 delta 합산으로 원점수를 계산합니다."""
-    w = load_weights()
+    if w is None:
+        w = load_weights()
     score = 0.0
 
     # 직종: job_category_norm 우선, null이면 title_raw로 추론
@@ -63,12 +64,12 @@ def calc_raw_score(job: Dict[str, Any], params: JobRequestDTO) -> float:
     if params.work_type:
         job_work_type = job.get("work_type_norm")
         if job_work_type is not None:
-            db_work_type = _WORK_TYPE_MAP.get(params.work_type.lower())
+            db_work_type = _WORK_TYPE_MAP.get(params.work_type.lower(), "UNKNOWN")
             matched = db_work_type is None or job_work_type == db_work_type
             score += _delta(w.work_type, 1.0 if matched else 0.0, w.match_coeff, w.mismatch_coeff)
 
     # 최소 급여
-    if params.salary_min:
+    if params.salary_min is not None:
         job_salary_min = job.get("salary_min")
         if job_salary_min is not None:
             matched = job_salary_min >= params.salary_min
@@ -93,9 +94,10 @@ def calc_raw_score(job: Dict[str, Any], params: JobRequestDTO) -> float:
     return score
 
 
-def calc_max_score(params: JobRequestDTO) -> float:
+def calc_max_score(params: JobRequestDTO, w=None) -> float:
     """파라미터 존재 여부에 따른 최대 가능 원점수를 반환합니다."""
-    w = load_weights()
+    if w is None:
+        w = load_weights()
     max_score = w.senior_tag  # 항상 평가
     if params.job_type:
         max_score += w.job_type
@@ -103,7 +105,7 @@ def calc_max_score(params: JobRequestDTO) -> float:
         max_score += w.physical_level
     if params.work_type:
         max_score += w.work_type
-    if params.salary_min:
+    if params.salary_min is not None:
         max_score += w.salary_min
     return max_score
 
