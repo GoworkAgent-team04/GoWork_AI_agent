@@ -308,6 +308,10 @@ def _format_job_card(row: dict) -> dict:
         "schedule": (row.get("schedule_raw") or "").strip() or None,
         "deadline": deadline,
         "source_url": row.get("source_url") or None,
+        "physical_level": row.get("physical_level") or None,
+        "senior_tag": row.get("senior_tag") or None,
+        "age_min": row.get("age_min") or None,
+        "age_max": row.get("age_max") or None,
     }
 
 
