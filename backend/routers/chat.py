@@ -1,31 +1,28 @@
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from agent.memory import memory
 from agent.router import process_message
-from backend.schemas.chat import ChatRequest, ChatResponse
-from backend.services.auth import verify_token
+from backend.schemas.chat import ChatRequestDTO, ChatResponseDTO
+from backend.schemas.feedback import FeedbackRequestDTO, FeedbackResponseDTO
 
-router = APIRouter()
+router = APIRouter(tags=["Chat"])
 
 
-@router.post("/chat", response_model=ChatResponse)
-async def chat(
-    req: ChatRequest,
-    user_id: str = Depends(verify_token),
-):
+@router.post("/chat", response_model=ChatResponseDTO, summary="채팅 메시지 전송")
+async def chat(req: ChatRequestDTO):
     """
-    채팅 엔드포인트. Authorization: Bearer <token> 헤더 필요.
+    사용자 메시지를 전송하고 AI 에이전트의 응답을 받습니다.
 
-    응답:
-      text - LLM 대화 텍스트 (말풍선에 표시)jobs - 공고 카드 목록 (일자리 추천 시에만 채워짐, 그 외에는 [])
+    - 일상 대화 / 문의 / 지원 / 프로필: `jobs`는 빈 배열 반환
+    - 일자리 추천: `text` (말풍선) + `jobs` (공고 카드 top3) 반환
     """
     try:
-        result = await process_message(user_id, req.message)
-        return ChatResponse(
-            user_id=user_id,
+        result = await process_message(str(req.user_id), req.message)
+        return ChatResponseDTO(
+            user_id=req.user_id,
             text=result["text"],
             jobs=result["jobs"],
         )
@@ -33,19 +30,15 @@ async def chat(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/chat/stream")
-async def chat_stream(
-    req: ChatRequest,
-    user_id: str = Depends(verify_token),
-):
+@router.post("/chat/stream", summary="채팅 스트리밍")
+async def chat_stream(req: ChatRequestDTO):
     """
-    스트리밍 채팅. Authorization: Bearer <token> 헤더 필요.
-    text 부분만 스트리밍합니다. jobs 카드가 필요하면 /chat을 사용하세요.
+    텍스트 응답을 스트리밍으로 받습니다. 공고 카드가 필요하면 /chat을 사용하세요.
     """
 
     async def generate():
         try:
-            result = await process_message(user_id, req.message)
+            result = await process_message(str(req.user_id), req.message)
             text = result["text"]
             chunk_size = 10
             for i in range(0, len(text), chunk_size):
@@ -57,8 +50,24 @@ async def chat_stream(
     return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
 
 
-@router.delete("/chat/history")
-async def clear_history(user_id: str = Depends(verify_token)):
-    """내 대화 기록 초기화. Authorization: Bearer <token> 헤더 필요."""
-    memory.clear(user_id)
+@router.delete("/chat/history", summary="대화 기록 초기화")
+async def clear_history(user_id: int):
+    """
+    특정 사용자의 대화 기록을 초기화합니다.
+    """
+    # softDelete 해야 함
+    memory.clear(str(user_id))
     return {"message": "대화 기록이 초기화되었습니다."}
+
+
+@router.post("/feedback", response_model=FeedbackResponseDTO, summary="공고 피드백 제출")
+async def submit_feedback(req: FeedbackRequestDTO):
+    """
+    추천받은 공고에 대한 별점 및 피드백을 제출합니다.
+
+    - `rating`: 1~5점
+    - `comment`: 선택 입력
+    - 추후 추천 가중치 개선에 활용됩니다.
+    """
+    # TODO: DB에 피드백 저장 로직 구현
+    return FeedbackResponseDTO(message="피드백이 접수되었습니다.")

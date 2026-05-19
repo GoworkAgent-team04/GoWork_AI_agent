@@ -77,23 +77,6 @@ class ProfileAction(BaseModel):
     value: Optional[str] = Field(None, description="수정할 값 (UPDATE 시)")
 
 
-# ─── Job Card (프론트엔드 렌더링용 공고 카드) ──────────────────────
-
-
-class JobCard(BaseModel):
-    """DB에서 직접 포맷팅된 공고 카드 — LLM 생성 없음, 할루시네이션 없음"""
-
-    id: str  # 공고 UUID (지원 요청 시 사용)
-    title: str  # 공고 제목 (title_raw)
-    company: Optional[str]  # 회사명 (null이면 프론트에서 "미기재" 표시)
-    location: Optional[str]  # 근무지 (city+district 조합 또는 location_raw)
-    salary: Optional[str]  # 급여 원문 (null이면 "급여 협의")
-    work_type: Optional[str]  # 근무형태
-    schedule: Optional[str]  # 근무일정
-    deadline: Optional[str]  # 마감일 (YYYY-MM-DD 또는 "상시모집", null이면 미기재)
-    source_url: Optional[str]  # 원본 공고 링크
-
-
 # ─── Job Context ─────────────────────────────────────────────────
 
 
