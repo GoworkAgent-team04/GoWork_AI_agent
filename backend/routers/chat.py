@@ -20,8 +20,7 @@ async def chat(
     채팅 엔드포인트. Authorization: Bearer <token> 헤더 필요.
 
     응답:
-      text - LLM 대화 텍스트 (말풍선에 표시)
-      jobs - 공고 카드 목록 (일자리 추천 시에만 채워짐, 그 외에는 [])
+      text - LLM 대화 텍스트 (말풍선에 표시)jobs - 공고 카드 목록 (일자리 추천 시에만 채워짐, 그 외에는 [])
     """
     try:
         result = await process_message(user_id, req.message)

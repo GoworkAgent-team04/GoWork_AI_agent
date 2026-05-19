@@ -1,0 +1,49 @@
+language: "ko-KR"
+
+reviews:
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+
+  path_filters:
+    - "!poetry.lock"
+    - "!**/__pycache__/**"
+    - "!**/*.pyc"
+
+  path_instructions:
+    - path: "agent/**"
+      instructions: |
+        agent 리뷰 해주면 좋을 것들 작성하면 됨
+
+    - path: "backend/**"
+      instructions: |
+        아래 사항을 집중 검토해주세요.
+
+        [API 및 응답]
+        - API 응답 스키마 일관성 및 누락 필드 여부
+        - 엔드포인트 응답 속도에 영향을 줄 수 있는 로직 확인
+        - 불필요한 DB 쿼리 또는 중복 호출 여부
+
+        [가중치 계산 및 추천]
+        - 유저 프로필 JSON 필드 누락 또는 타입 불일치 여부
+        - 가중치 계산 로직의 엣지 케이스 처리 여부 (값이 없거나 null인 경우)
+        - top3 추천 정렬 및 필터링 결과의 정확성
+        - 가중치 계산 결과가 의도한 범위 내에 있는지
+
+        [DB 및 성능]
+        - N+1 쿼리 문제 발생 여부
+        - 인덱스 활용 여부 및 쿼리 최적화
+        - 대용량 데이터 처리 시 성능 이슈 가능성
+        - DB 커넥션 관리 적절성
+
+        [데이터 정합성]
+        - 유저 프로필과 공고 데이터 간 타입 매핑 일관성
+        - 입력값 검증 및 예외 처리 누락 여부
+
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - develop
