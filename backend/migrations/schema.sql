@@ -1,6 +1,6 @@
 -- ================================================================
--- 사용자 관련 테이블 생성 및 목업 데이터
--- 실행: psql postgresql://minki:1234@localhost:5432/gowork -f backend/migrations/create_users_and_applications.sql
+-- GoWork AI Agent - DB 스키마 및 목업 데이터
+-- 실행: psql postgresql://localhost:5432/gowork -f backend/migrations/schema.sql
 -- ================================================================
 
 
@@ -64,18 +64,20 @@ CREATE TABLE IF NOT EXISTS user_ratings (
 CREATE TABLE IF NOT EXISTS feedbacks (
     id           bigserial    PRIMARY KEY,
     reviewer_id  bigint       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    content      text         NOT NULL,
+    job_id       varchar(36),
+    rating       smallint     CHECK (rating BETWEEN 1 AND 5),
+    comment      text,
     created_at   timestamp    NOT NULL DEFAULT now()
 );
 
 
 -- ─── 2. 인덱스 ──────────────────────────────────────────────────
 
-CREATE INDEX IF NOT EXISTS idx_careers_user_id          ON careers (user_id);
-CREATE INDEX IF NOT EXISTS idx_certifications_user_id   ON certifications (user_id);
-CREATE INDEX IF NOT EXISTS idx_language_skills_user_id  ON language_skills (user_id);
-CREATE INDEX IF NOT EXISTS idx_document_skills_user_id  ON document_skills (user_id);
-CREATE INDEX IF NOT EXISTS idx_other_skills_user_id     ON other_skills (user_id);
+CREATE INDEX IF NOT EXISTS idx_careers_user_id         ON careers (user_id);
+CREATE INDEX IF NOT EXISTS idx_certifications_user_id  ON certifications (user_id);
+CREATE INDEX IF NOT EXISTS idx_language_skills_user_id ON language_skills (user_id);
+CREATE INDEX IF NOT EXISTS idx_document_skills_user_id ON document_skills (user_id);
+CREATE INDEX IF NOT EXISTS idx_other_skills_user_id    ON other_skills (user_id);
 
 
 -- ─── 3. 목업 데이터 ─────────────────────────────────────────────
@@ -83,7 +85,6 @@ CREATE INDEX IF NOT EXISTS idx_other_skills_user_id     ON other_skills (user_id
 -- 경력/자격증/보유능력 있는 사용자 10명 (id: 11~20)
 
 INSERT INTO users (id, name, age, phone, address) VALUES
--- 능력 없는 사용자 (1~10)
 (1,  '김순자', 68, '010-1111-0001', '서울 노원구 상계동'),
 (2,  '이복남', 72, '010-1111-0002', '부산 사하구 괴정동'),
 (3,  '박말순', 65, '010-1111-0003', '대구 달서구 본리동'),
@@ -94,7 +95,6 @@ INSERT INTO users (id, name, age, phone, address) VALUES
 (8,  '장두이', 71, '010-1111-0008', '경기 수원시 팔달구'),
 (9,  '임금순', 66, '010-1111-0009', '경기 성남시 분당구'),
 (10, '한말례', 74, '010-1111-0010', '경기 고양시 덕양구'),
--- 능력 있는 사용자 (11~20)
 (11, '조성호', 62, '010-2222-0011', '서울 강남구 역삼동'),
 (12, '신동철', 58, '010-2222-0012', '서울 마포구 합정동'),
 (13, '오현숙', 60, '010-2222-0013', '부산 해운대구 우동'),
@@ -107,33 +107,32 @@ INSERT INTO users (id, name, age, phone, address) VALUES
 (20, '문창식', 65, '010-2222-0020', '경기 안산시 단원구')
 ON CONFLICT DO NOTHING;
 
--- 시퀀스 동기화 (bigserial 수동 INSERT 후 필요)
 SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
 
 
--- ─── 4. 경력 데이터 (능력 있는 사용자: 11~20) ───────────────────
+-- ─── 4. 경력 데이터 (id: 11~20) ─────────────────────────────────
 
 INSERT INTO careers (user_id, company_name, start_date, end_date, is_current, job_title, description) VALUES
-(11, '삼성전자',        '1990-03-01', '2010-02-28', false, '생산기술팀 과장', '반도체 생산라인 공정 관리 및 품질 개선'),
-(11, '(주)한국설비',    '2010-05-01', '2022-12-31', false, '설비팀장',        '제조 설비 유지보수 및 팀 관리'),
-(12, '대한항공',        '1992-04-01', '2015-03-31', false, '지상직 부장',     '화물 운송 및 지상 운영 총괄'),
-(12, '인천공항공사',    '2015-06-01', NULL,         true,  '시설운영 차장',   '공항 시설 운영 및 안전 관리'),
-(13, '롯데백화점',      '1995-02-01', '2018-01-31', false, '판매팀 과장',     '매장 운영 및 고객 서비스 관리'),
-(13, '이마트',          '2018-03-01', '2023-06-30', false, '매장운영 담당',   '생필품 코너 재고 및 판매 관리'),
-(14, '현대자동차',      '1988-05-01', '2012-04-30', false, '영업부 차장',     '법인 영업 및 거래처 관리'),
-(14, '기아자동차',      '2012-06-01', '2020-05-31', false, '지점장',          '영업 지점 운영 및 실적 관리'),
-(15, '국민은행',        '1998-01-01', '2020-12-31', false, '수석행원',        '여신 심사 및 개인 금융 상담'),
-(16, '서울아산병원',    '2000-03-01', '2021-02-28', false, '원무팀 과장',     '환자 접수 및 의무기록 관리'),
-(17, '한국전력',        '1993-08-01', '2018-07-31', false, '배전팀 차장',     '배전 설비 운영 및 유지보수'),
-(17, '(주)에너지솔루션','2018-09-01', NULL,         true,  '기술고문',        '전력 설비 기술 자문'),
-(18, '포스코',          '1986-03-01', '2008-02-28', false, '제강부 부장',     '제강 공정 운영 및 품질 관리'),
-(18, '(주)철강기술',    '2008-04-01', '2023-03-31', false, '공장장',          '중소 철강 제조 공장 총괄'),
-(19, 'KT',             '1995-06-01', '2019-05-31', false, '네트워크팀 과장', '유무선 네트워크 설치 및 유지보수'),
-(20, '서울시청',        '1990-07-01', '2020-06-30', false, '행정 6급',        '민원 처리 및 지역 행정 업무')
+(11, '삼성전자',         '1990-03-01', '2010-02-28', false, '생산기술팀 과장', '반도체 생산라인 공정 관리 및 품질 개선'),
+(11, '(주)한국설비',     '2010-05-01', '2022-12-31', false, '설비팀장',        '제조 설비 유지보수 및 팀 관리'),
+(12, '대한항공',         '1992-04-01', '2015-03-31', false, '지상직 부장',     '화물 운송 및 지상 운영 총괄'),
+(12, '인천공항공사',     '2015-06-01', NULL,         true,  '시설운영 차장',   '공항 시설 운영 및 안전 관리'),
+(13, '롯데백화점',       '1995-02-01', '2018-01-31', false, '판매팀 과장',     '매장 운영 및 고객 서비스 관리'),
+(13, '이마트',           '2018-03-01', '2023-06-30', false, '매장운영 담당',   '생필품 코너 재고 및 판매 관리'),
+(14, '현대자동차',       '1988-05-01', '2012-04-30', false, '영업부 차장',     '법인 영업 및 거래처 관리'),
+(14, '기아자동차',       '2012-06-01', '2020-05-31', false, '지점장',          '영업 지점 운영 및 실적 관리'),
+(15, '국민은행',         '1998-01-01', '2020-12-31', false, '수석행원',        '여신 심사 및 개인 금융 상담'),
+(16, '서울아산병원',     '2000-03-01', '2021-02-28', false, '원무팀 과장',     '환자 접수 및 의무기록 관리'),
+(17, '한국전력',         '1993-08-01', '2018-07-31', false, '배전팀 차장',     '배전 설비 운영 및 유지보수'),
+(17, '(주)에너지솔루션', '2018-09-01', NULL,         true,  '기술고문',        '전력 설비 기술 자문'),
+(18, '포스코',           '1986-03-01', '2008-02-28', false, '제강부 부장',     '제강 공정 운영 및 품질 관리'),
+(18, '(주)철강기술',     '2008-04-01', '2023-03-31', false, '공장장',          '중소 철강 제조 공장 총괄'),
+(19, 'KT',              '1995-06-01', '2019-05-31', false, '네트워크팀 과장', '유무선 네트워크 설치 및 유지보수'),
+(20, '서울시청',         '1990-07-01', '2020-06-30', false, '행정 6급',        '민원 처리 및 지역 행정 업무')
 ON CONFLICT DO NOTHING;
 
 
--- ─── 5. 자격증 데이터 (능력 있는 사용자: 11~20) ─────────────────
+-- ─── 5. 자격증 데이터 (id: 11~20) ───────────────────────────────
 
 INSERT INTO certifications (user_id, name, issued_date, issuer) VALUES
 (11, '기계정비산업기사',   '2005-08-20', '한국산업인력공단'),
@@ -155,7 +154,7 @@ INSERT INTO certifications (user_id, name, issued_date, issuer) VALUES
 ON CONFLICT DO NOTHING;
 
 
--- ─── 6. 어학 능력 데이터 (능력 있는 사용자 일부) ─────────────────
+-- ─── 6. 어학 능력 데이터 (id: 11~20 일부) ───────────────────────
 
 INSERT INTO language_skills (user_id, language, level) VALUES
 (11, '영어',   '일상회화가능'),
@@ -168,7 +167,7 @@ INSERT INTO language_skills (user_id, language, level) VALUES
 ON CONFLICT DO NOTHING;
 
 
--- ─── 7. 문서 툴 능력 데이터 (능력 있는 사용자 일부) ──────────────
+-- ─── 7. 문서 툴 능력 데이터 (id: 11~20 일부) ────────────────────
 
 INSERT INTO document_skills (user_id, tool) VALUES
 (11, '엑셀'), (11, '파워포인트'),
@@ -184,7 +183,7 @@ INSERT INTO document_skills (user_id, tool) VALUES
 ON CONFLICT DO NOTHING;
 
 
--- ─── 8. 기타 역량 데이터 (능력 있는 사용자 일부) ─────────────────
+-- ─── 8. 기타 역량 데이터 (id: 11~20 일부) ───────────────────────
 
 INSERT INTO other_skills (user_id, keyword) VALUES
 (11, '설비관리'), (11, '공정개선'), (11, '팀관리'),
