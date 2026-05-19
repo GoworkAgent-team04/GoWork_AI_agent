@@ -8,7 +8,7 @@ FastAPI 애플리케이션 생성 및 설정
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.routers import chat, recommend, user
+from backend.routers import chat, feedback, recommend, user
 
 app = FastAPI(
     title="GoWork AI Agent API",
@@ -40,3 +40,4 @@ app.add_middleware(
 app.include_router(chat.router)
 app.include_router(user.router)
 app.include_router(recommend.router)
+app.include_router(feedback.router)

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from backend.schemas.user import UserResponseDTO
+from backend.services import user_service
 
 router = APIRouter(tags=["User"])
 
@@ -13,5 +14,7 @@ async def get_user(user_id: int):
     - 경력, 자격증, 어학, 문서 툴, 기타 역량 포함
     - 앱 시작 시 LLM context 주입용으로 사용
     """
-    # TODO: DB 조회 로직 구현 (users + 관련 테이블 JOIN)
-    raise HTTPException(status_code=404, detail="유저를 찾을 수 없습니다.")
+    user = user_service.get_user(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="유저를 찾을 수 없습니다.")
+    return user

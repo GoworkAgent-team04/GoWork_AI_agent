@@ -1,91 +1,200 @@
 -- ================================================================
--- users (임시) + applications 테이블 생성
--- 실행: psql postgresql://minki:1234@localhost:5432/gowork -f migrations/create_users_and_applications.sql
+-- 사용자 관련 테이블 생성 및 목업 데이터
+-- 실행: psql postgresql://minki:1234@localhost:5432/gowork -f backend/migrations/create_users_and_applications.sql
 -- ================================================================
 
 
--- ─── 1. application_status enum 생성 ────────────────────────────
-
-CREATE TYPE application_status AS ENUM (
-    'PENDING',    -- 지원 완료 (검토 대기)
-    'VIEWED',     -- 업체가 이력서 열람
-    'PASS',       -- 합격
-    'FAIL',       -- 불합격
-    'CANCELLED'   -- 사용자가 취소
-);
-
-
--- ─── 2. users 테이블 (임시) ──────────────────────────────────────
--- 실제 users 테이블은 회사 구현 기준을 따름
--- 이 테이블은 AI 에이전트 개발/테스트 용도
+-- ─── 1. 테이블 생성 ─────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS users (
-    id                   uuid          NOT NULL DEFAULT uuid_generate_v4(),
-    name                 varchar(50)   NOT NULL,
-    phone_encrypted      varchar(500),                        -- 암호화된 전화번호
-    birth_year           smallint,                            -- 출생연도 (나이 계산용)
-    region_city          varchar(30),                         -- 거주 시/도
-    region_district      varchar(50),                         -- 거주 구/군
-    preferred_job_category job_category,                      -- 희망 직종
-    preferred_work_type  work_type,                           -- 희망 근무형태
-    physical_level       physical_level DEFAULT 'HIGH',       -- 신체 활동 가능 수준
-    career_type          career_type    DEFAULT 'UNKNOWN',    -- 경력 유형
-    experience_desc      text,                                -- 경력 상세 설명
-    is_active            boolean        NOT NULL DEFAULT true, -- 계정 활성 여부
-    created_at           timestamp      NOT NULL DEFAULT now(),
-    updated_at           timestamp      NOT NULL DEFAULT now(),
-
-    CONSTRAINT users_pkey PRIMARY KEY (id)
+    id           bigserial    PRIMARY KEY,
+    name         varchar(50)  NOT NULL,
+    age          int,
+    phone        varchar(20),
+    address      varchar(200),
+    created_at   timestamp    NOT NULL DEFAULT now()
 );
 
-COMMENT ON TABLE  users                          IS '사용자 프로필 (임시 테이블 - 실제 구현으로 교체 필요)';
-COMMENT ON COLUMN users.physical_level           IS 'LOW: 가벼운 업무만 가능 / MID: 보통 / HIGH: 제약 없음';
-COMMENT ON COLUMN users.preferred_job_category   IS 'job_category enum 참고';
-
-
--- ─── 3. applications 테이블 ─────────────────────────────────────
-
-CREATE TABLE IF NOT EXISTS applications (
-    id           uuid               NOT NULL DEFAULT uuid_generate_v4(),
-    user_id      uuid               NOT NULL,
-    posting_id   uuid               NOT NULL,
-    status       application_status NOT NULL DEFAULT 'PENDING',
-    memo         text,                                        -- 사용자 메모 (선택)
-    applied_at   timestamp          NOT NULL DEFAULT now(),
-    updated_at   timestamp          NOT NULL DEFAULT now(),
-
-    CONSTRAINT applications_pkey          PRIMARY KEY (id),
-    CONSTRAINT applications_user_fkey     FOREIGN KEY (user_id)    REFERENCES users (id),
-    CONSTRAINT applications_posting_fkey  FOREIGN KEY (posting_id) REFERENCES job_posting (id),
-    CONSTRAINT applications_unique        UNIQUE (user_id, posting_id)  -- 중복 지원 방지
+CREATE TABLE IF NOT EXISTS careers (
+    id           bigserial    PRIMARY KEY,
+    user_id      bigint       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    company_name varchar(100) NOT NULL,
+    start_date   date         NOT NULL,
+    end_date     date,                   -- 재직 중이면 null
+    is_current   boolean      NOT NULL DEFAULT false,
+    job_title    varchar(100),
+    description  text
 );
 
-COMMENT ON TABLE  applications        IS '사용자 지원 이력';
-COMMENT ON COLUMN applications.status IS 'PENDING: 대기 / VIEWED: 열람 / PASS: 합격 / FAIL: 불합격 / CANCELLED: 취소';
+CREATE TABLE IF NOT EXISTS certifications (
+    id           bigserial    PRIMARY KEY,
+    user_id      bigint       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name         varchar(100) NOT NULL,
+    issued_date  date,
+    issuer       varchar(100)
+);
+
+CREATE TABLE IF NOT EXISTS language_skills (
+    id           bigserial    PRIMARY KEY,
+    user_id      bigint       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    language     varchar(50)  NOT NULL,  -- 영어, 일본어 …
+    level        varchar(20)  NOT NULL   -- 일상회화가능 | 업무가능 | 원어민수준
+);
+
+CREATE TABLE IF NOT EXISTS document_skills (
+    id           bigserial    PRIMARY KEY,
+    user_id      bigint       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    tool         varchar(30)  NOT NULL   -- 워드 | 한글 | 엑셀 | 파워포인트
+);
+
+CREATE TABLE IF NOT EXISTS other_skills (
+    id           bigserial    PRIMARY KEY,
+    user_id      bigint       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    keyword      varchar(100) NOT NULL   -- 협상능력, 리더십 …
+);
+
+CREATE TABLE IF NOT EXISTS user_ratings (
+    id           bigserial    PRIMARY KEY,
+    reviewer_id  bigint       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    score        smallint     NOT NULL CHECK (score BETWEEN 1 AND 5),
+    category     varchar(20)  NOT NULL,  -- 성실성 | 전문성 | 소통능력
+    rated_at     timestamp    NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS feedbacks (
+    id           bigserial    PRIMARY KEY,
+    reviewer_id  bigint       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content      text         NOT NULL,
+    created_at   timestamp    NOT NULL DEFAULT now()
+);
 
 
--- ─── 4. 인덱스 ──────────────────────────────────────────────────
+-- ─── 2. 인덱스 ──────────────────────────────────────────────────
 
-CREATE INDEX idx_applications_user    ON applications (user_id);
-CREATE INDEX idx_applications_posting ON applications (posting_id);
-CREATE INDEX idx_applications_status  ON applications (status);
-CREATE INDEX idx_users_region         ON users (region_city, region_district);
+CREATE INDEX IF NOT EXISTS idx_careers_user_id          ON careers (user_id);
+CREATE INDEX IF NOT EXISTS idx_certifications_user_id   ON certifications (user_id);
+CREATE INDEX IF NOT EXISTS idx_language_skills_user_id  ON language_skills (user_id);
+CREATE INDEX IF NOT EXISTS idx_document_skills_user_id  ON document_skills (user_id);
+CREATE INDEX IF NOT EXISTS idx_other_skills_user_id     ON other_skills (user_id);
 
 
--- ─── 5. 테스트 데이터 (개발용) ───────────────────────────────────
+-- ─── 3. 목업 데이터 ─────────────────────────────────────────────
+-- 경력/자격증/보유능력 없는 사용자 10명 (id: 1~10)
+-- 경력/자격증/보유능력 있는 사용자 10명 (id: 11~20)
 
-INSERT INTO users (
-    id, name, birth_year, region_city, region_district,
-    preferred_job_category, preferred_work_type, physical_level, career_type
-) VALUES (
-    '00000000-0000-0000-0000-000000000001',
-    '테스트사용자',
-    1960,
-    '서울',
-    '강남구',
-    'SECURITY',
-    'PART_TIME',
-    'MID',
-    'EXPERIENCED'
-)
+INSERT INTO users (id, name, age, phone, address) VALUES
+-- 능력 없는 사용자 (1~10)
+(1,  '김순자', 68, '010-1111-0001', '서울 노원구 상계동'),
+(2,  '이복남', 72, '010-1111-0002', '부산 사하구 괴정동'),
+(3,  '박말순', 65, '010-1111-0003', '대구 달서구 본리동'),
+(4,  '최갑순', 70, '010-1111-0004', '인천 남동구 구월동'),
+(5,  '정옥자', 67, '010-1111-0005', '광주 북구 운암동'),
+(6,  '강명자', 73, '010-1111-0006', '대전 서구 도마동'),
+(7,  '윤복순', 69, '010-1111-0007', '울산 남구 삼산동'),
+(8,  '장두이', 71, '010-1111-0008', '경기 수원시 팔달구'),
+(9,  '임금순', 66, '010-1111-0009', '경기 성남시 분당구'),
+(10, '한말례', 74, '010-1111-0010', '경기 고양시 덕양구'),
+-- 능력 있는 사용자 (11~20)
+(11, '조성호', 62, '010-2222-0011', '서울 강남구 역삼동'),
+(12, '신동철', 58, '010-2222-0012', '서울 마포구 합정동'),
+(13, '오현숙', 60, '010-2222-0013', '부산 해운대구 우동'),
+(14, '권기남', 63, '010-2222-0014', '대구 수성구 범어동'),
+(15, '황미경', 57, '010-2222-0015', '인천 연수구 송도동'),
+(16, '송재훈', 61, '010-2222-0016', '광주 서구 화정동'),
+(17, '배영희', 59, '010-2222-0017', '대전 유성구 봉명동'),
+(18, '유태호', 64, '010-2222-0018', '경기 용인시 기흥구'),
+(19, '안정숙', 56, '010-2222-0019', '경기 부천시 원미구'),
+(20, '문창식', 65, '010-2222-0020', '경기 안산시 단원구')
+ON CONFLICT DO NOTHING;
+
+-- 시퀀스 동기화 (bigserial 수동 INSERT 후 필요)
+SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
+
+
+-- ─── 4. 경력 데이터 (능력 있는 사용자: 11~20) ───────────────────
+
+INSERT INTO careers (user_id, company_name, start_date, end_date, is_current, job_title, description) VALUES
+(11, '삼성전자',        '1990-03-01', '2010-02-28', false, '생산기술팀 과장', '반도체 생산라인 공정 관리 및 품질 개선'),
+(11, '(주)한국설비',    '2010-05-01', '2022-12-31', false, '설비팀장',        '제조 설비 유지보수 및 팀 관리'),
+(12, '대한항공',        '1992-04-01', '2015-03-31', false, '지상직 부장',     '화물 운송 및 지상 운영 총괄'),
+(12, '인천공항공사',    '2015-06-01', NULL,         true,  '시설운영 차장',   '공항 시설 운영 및 안전 관리'),
+(13, '롯데백화점',      '1995-02-01', '2018-01-31', false, '판매팀 과장',     '매장 운영 및 고객 서비스 관리'),
+(13, '이마트',          '2018-03-01', '2023-06-30', false, '매장운영 담당',   '생필품 코너 재고 및 판매 관리'),
+(14, '현대자동차',      '1988-05-01', '2012-04-30', false, '영업부 차장',     '법인 영업 및 거래처 관리'),
+(14, '기아자동차',      '2012-06-01', '2020-05-31', false, '지점장',          '영업 지점 운영 및 실적 관리'),
+(15, '국민은행',        '1998-01-01', '2020-12-31', false, '수석행원',        '여신 심사 및 개인 금융 상담'),
+(16, '서울아산병원',    '2000-03-01', '2021-02-28', false, '원무팀 과장',     '환자 접수 및 의무기록 관리'),
+(17, '한국전력',        '1993-08-01', '2018-07-31', false, '배전팀 차장',     '배전 설비 운영 및 유지보수'),
+(17, '(주)에너지솔루션','2018-09-01', NULL,         true,  '기술고문',        '전력 설비 기술 자문'),
+(18, '포스코',          '1986-03-01', '2008-02-28', false, '제강부 부장',     '제강 공정 운영 및 품질 관리'),
+(18, '(주)철강기술',    '2008-04-01', '2023-03-31', false, '공장장',          '중소 철강 제조 공장 총괄'),
+(19, 'KT',             '1995-06-01', '2019-05-31', false, '네트워크팀 과장', '유무선 네트워크 설치 및 유지보수'),
+(20, '서울시청',        '1990-07-01', '2020-06-30', false, '행정 6급',        '민원 처리 및 지역 행정 업무')
+ON CONFLICT DO NOTHING;
+
+
+-- ─── 5. 자격증 데이터 (능력 있는 사용자: 11~20) ─────────────────
+
+INSERT INTO certifications (user_id, name, issued_date, issuer) VALUES
+(11, '기계정비산업기사',   '2005-08-20', '한국산업인력공단'),
+(11, '지게차운전기능사',   '2008-04-15', '한국산업인력공단'),
+(12, '위험물산업기사',     '2003-06-10', '한국산업인력공단'),
+(13, '유통관리사 2급',     '2010-11-05', '대한상공회의소'),
+(14, '자동차운전면허 1종', '1990-03-22', '경찰청'),
+(14, '세일즈전문가',       '2015-09-01', '한국영업협회'),
+(15, '은행텔러 1급',       '2005-05-20', '금융연수원'),
+(15, '재경관리사',         '2012-03-15', '한국공인회계사회'),
+(16, '병원행정사',         '2008-07-30', '대한병원행정관리자협회'),
+(17, '전기기능사',         '2000-11-25', '한국산업인력공단'),
+(17, '전기공사산업기사',   '2005-06-18', '한국산업인력공단'),
+(18, '용접기능사',         '1998-09-10', '한국산업인력공단'),
+(18, '품질경영기사',       '2003-12-05', '한국산업인력공단'),
+(19, '정보처리기사',       '2002-07-20', '한국산업인력공단'),
+(19, '네트워크관리사 2급', '2007-04-12', '한국정보통신자격협회'),
+(20, '행정사',             '2015-03-01', '행정안전부')
+ON CONFLICT DO NOTHING;
+
+
+-- ─── 6. 어학 능력 데이터 (능력 있는 사용자 일부) ─────────────────
+
+INSERT INTO language_skills (user_id, language, level) VALUES
+(11, '영어',   '일상회화가능'),
+(12, '영어',   '업무가능'),
+(12, '일본어', '일상회화가능'),
+(13, '중국어', '일상회화가능'),
+(15, '영어',   '업무가능'),
+(19, '영어',   '업무가능'),
+(20, '영어',   '일상회화가능')
+ON CONFLICT DO NOTHING;
+
+
+-- ─── 7. 문서 툴 능력 데이터 (능력 있는 사용자 일부) ──────────────
+
+INSERT INTO document_skills (user_id, tool) VALUES
+(11, '엑셀'), (11, '파워포인트'),
+(12, '워드'), (12, '엑셀'), (12, '파워포인트'),
+(13, '한글'), (13, '엑셀'),
+(14, '엑셀'), (14, '파워포인트'),
+(15, '워드'), (15, '엑셀'), (15, '한글'),
+(16, '한글'), (16, '엑셀'),
+(17, '엑셀'),
+(18, '한글'),
+(19, '워드'), (19, '엑셀'), (19, '파워포인트'),
+(20, '한글'), (20, '엑셀'), (20, '파워포인트')
+ON CONFLICT DO NOTHING;
+
+
+-- ─── 8. 기타 역량 데이터 (능력 있는 사용자 일부) ─────────────────
+
+INSERT INTO other_skills (user_id, keyword) VALUES
+(11, '설비관리'), (11, '공정개선'), (11, '팀관리'),
+(12, '물류관리'), (12, '안전관리'),
+(13, '고객응대'), (13, '재고관리'),
+(14, '협상능력'), (14, '리더십'), (14, '영업전략'),
+(15, '재무분석'), (15, '고객상담'),
+(16, '의료행정'), (16, '민원처리'),
+(17, '전력설비'), (17, '유지보수'),
+(18, '생산관리'), (18, '품질관리'), (18, '원가절감'),
+(19, '네트워크'), (19, '장애처리'),
+(20, '행정업무'), (20, '문서작성'), (20, '민원처리')
 ON CONFLICT DO NOTHING;

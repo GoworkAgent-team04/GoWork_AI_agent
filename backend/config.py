@@ -28,7 +28,8 @@ class Config:
     MAX_HISTORY_TURNS: int = 10  # 최근 N턴 대화만 유지 (5턴이면 구인구직 흐름상 충분)
 
     # 검색
-    MAX_JOB_RESULTS: int = 5  # 한 번에 추천할 최대 일자리 수
+    JOB_CANDIDATE_POOL: int = 50  # 스코어링 후보 조회 수 (많을수록 추천 품질 향상)
+    MAX_JOB_RESULTS: int = 5  # 최종 반환 공고 수 (에이전트 재검색 루프용)
 
     # 디버깅
     LOG_LLM: bool = True  # LLM 입출력 터미널 로그 (운영 시 False로 변경)
