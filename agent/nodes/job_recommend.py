@@ -18,6 +18,14 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from agent.llm import fast_llm, main_llm
 from agent.parsers import RobustPydanticParser
+from agent.prompts import (
+    JOB_RESPONSE_HUMAN,
+    JOB_RESPONSE_SYSTEM,
+    PARAM_EXTRACTOR_HUMAN,
+    PARAM_EXTRACTOR_SYSTEM,
+    QUESTION_GEN_HUMAN,
+    QUESTION_GEN_SYSTEM,
+)
 from agent.state import AgentState
 from backend.database.queries import _map_job_category, search_jobs
 from backend.models.schemas import JobSearchParams
@@ -118,27 +126,8 @@ async def profile_checker_node(state: AgentState) -> dict:
 _question_gen_chain = (
     ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                """당신은 따뜻하고 친절한 일자리 상담사입니다.
-부족한 정보를 자연스럽고 공손하게 질문합니다.
-
-규칙:
-- 반드시 한 번에 하나의 질문만 하세요
-- 쉽고 간단한 표현을 사용하세요
-- 딱딱하지 않고 대화하듯 물어보세요
-- 반드시 한국어로 답변하세요""",
-            ),
-            (
-                "human",
-                """[부족한 정보 항목]
-{missing_fields}
-
-[대화 기록]
-{history}
-
-가장 중요한 정보 하나만 자연스럽게 질문해주세요.""",
-            ),
+            ("system", QUESTION_GEN_SYSTEM),
+            ("human", QUESTION_GEN_HUMAN),
         ]
     )
     | fast_llm
@@ -165,25 +154,8 @@ _param_extractor_parser = RobustPydanticParser(pydantic_object=JobSearchParams)
 _param_extractor_chain = (
     ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                """대화 내용에서 일자리 검색 파라미터를 추출합니다.
-DB 프로필과 대화에서 수집된 정보를 모두 활용하세요.
-확신할 수 없는 값은 null로 설정하세요.
-
-{format_instructions}""",
-            ),
-            (
-                "human",
-                """[DB 사용자 프로필]
-{db_profile}
-
-[대화에서 수집된 정보]
-{collected_info}
-
-[대화 기록]
-{history}""",
-            ),
+            ("system", PARAM_EXTRACTOR_SYSTEM),
+            ("human", PARAM_EXTRACTOR_HUMAN),
         ]
     )
     | fast_llm
@@ -315,36 +287,8 @@ def _format_job_card(row: dict) -> dict:
 _intro_chain = (
     ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                """당신은 따뜻하고 친절한 일자리 상담사입니다.
-
-공고 카드는 시스템이 별도로 표시하므로, 당신은 짧은 도입 문장만 작성하세요.
-
-규칙:
-- 회사명·급여·위치 등 공고의 구체적인 내용은 절대 언급하지 마세요
-- 검색 건수와 검색 조건(지역·직종)만 자연스럽게 언급하세요
-- 검색 범위를 넓혀서 찾은 경우(retry_count > 0) 이 사실을 언급하세요
-- 1~2문장으로 짧게, 이해하기 쉬운 말투로 작성하세요
-- 마지막에 관심 있는 공고가 있는지 자연스럽게 물어보세요
-- 반드시 한국어로 답변하세요""",
-            ),
-            (
-                "human",
-                """[검색 건수]
-{job_count}건
-
-[사용자 조건]
-{user_conditions}
-
-[재검색 횟수]
-{retry_count}
-
-[대화 기록]
-{history}
-
-도입 문장을 작성해주세요.""",
-            ),
+            ("system", JOB_RESPONSE_SYSTEM),
+            ("human", JOB_RESPONSE_HUMAN),
         ]
     )
     | main_llm

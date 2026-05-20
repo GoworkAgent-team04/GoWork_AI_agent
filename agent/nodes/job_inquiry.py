@@ -11,6 +11,12 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from agent.llm import fast_llm, main_llm
 from agent.parsers import RobustPydanticParser
+from agent.prompts import (
+    INQUIRY_CONTEXT_HUMAN,
+    INQUIRY_CONTEXT_SYSTEM,
+    INQUIRY_RESPONSE_HUMAN,
+    INQUIRY_RESPONSE_SYSTEM,
+)
 from agent.state import AgentState
 from backend.database.queries import get_job_detail
 from backend.models.schemas import JobIdExtract
@@ -22,27 +28,8 @@ _context_resolver_parser = RobustPydanticParser(pydantic_object=JobIdExtract)
 _context_resolver_chain = (
     ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                """대화 기록과 최근 추천 공고 목록을 보고
-사용자가 문의하려는 공고의 job_id를 파악하세요.
-
-- "이 일", "1번 일자리", "경비 일" 등 간접 표현도 추론하세요
-- 특정할 수 없으면 job_id를 null로 반환하세요
-
-{format_instructions}""",
-            ),
-            (
-                "human",
-                """[최근 추천 공고 목록]
-{last_jobs}
-
-[대화 기록]
-{history}
-
-[현재 사용자 메시지]
-{user_message}""",
-            ),
+            ("system", INQUIRY_CONTEXT_SYSTEM),
+            ("human", INQUIRY_CONTEXT_HUMAN),
         ]
     )
     | fast_llm
@@ -54,24 +41,8 @@ _context_resolver_chain = (
 _response_chain = (
     ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                """당신은 친절한 일자리 상담사입니다.
-공고 상세 정보를 이해하기 쉽게 설명해드립니다.
-
-- 중요한 정보(근무지, 급여, 근무시간, 연락처)를 먼저 안내하세요
-- 이해하기 쉬운 말투 사용
-- 지원 방법도 함께 안내해주세요
-- 반드시 한국어로 답변하세요""",
-            ),
-            (
-                "human",
-                """[공고 상세 정보]
-{job_detail}
-
-[사용자 메시지]
-{user_message}""",
-            ),
+            ("system", INQUIRY_RESPONSE_SYSTEM),
+            ("human", INQUIRY_RESPONSE_HUMAN),
         ]
     )
     | main_llm

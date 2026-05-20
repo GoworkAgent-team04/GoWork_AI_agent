@@ -18,6 +18,7 @@ from agent.llm import fast_llm
 from agent.memory import memory
 from agent.nodes.intent import classify_intent
 from agent.parsers import RobustPydanticParser
+from agent.prompts import EXTRACT_HUMAN, EXTRACT_SYSTEM
 from agent.state import AgentState
 from backend.database.queries import get_user_profile
 from backend.models.schemas import IntentType, ProfileInfo
@@ -27,36 +28,8 @@ _parser = RobustPydanticParser(pydantic_object=ProfileInfo)
 _extractor_chain = (
     ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                """사용자 메시지에서 일자리 관련 조건 정보를 추출하세요.
-
-추출 대상:
-- job_type       : 희망 직종 (예: "경비", "청소", "요양보호사")
-- region         : 거주/희망 근무 지역 (예: "서울", "강남구", "수원", "경기도")
-                   ※ 반드시 실제 지명(시·구·동·도)이어야 합니다.
-                   ✘ null로 처리 → "집 근처", "가까운 곳", "멀리는 못 가", "집에서 가까운",
-                                    "동네", "근처", "가까운데", "우리 동네"
-                      (이런 표현은 거리 선호일 뿐, 지역이 아닙니다)
-- physical_limit : 신체적 제약 여부
-                   true  → "어렵지 않게", "가벼운 일만", "힘든 건 못해", "몸이 불편", "무릎이 안 좋아",
-                            "어려운 일은 못해", "힘든 일은 못해", "가벼운 거만", "몸이 안 좋아"
-                   false → "건강해", "몸 괜찮아", "힘든 것도 가능", "몸 멀쩡해"
-                   ※ "어렵다"는 표현은 신체 제약(true)으로 해석하세요
-- work_type      : 근무 형태 ("시간제"/"part_time" 또는 "전일제"/"full_time" 또는 "any")
-                   "잠깐만", "몇 시간만" → part_time
-                   "매일", "정규직" → full_time
-- salary_min     : 최소 희망 급여 (숫자만, 단위 제거. 예: 150만원 → 1500000)
-- experience     : 경력 내용
-
-규칙:
-- 이번 메시지에서 언급된 것만 추출하세요
-- 간접적인 표현도 적극적으로 해석하세요
-- 언급되지 않은 항목은 반드시 null로 설정하세요
-
-{format_instructions}""",
-            ),
-            ("human", "사용자 메시지: {user_message}"),
+            ("system", EXTRACT_SYSTEM),
+            ("human", EXTRACT_HUMAN),
         ]
     )
     | fast_llm
