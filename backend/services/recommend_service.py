@@ -60,7 +60,7 @@ def get_recommendations(params: JobRequestDTO) -> List[JobCard]:
         return []
 
     w = load_weights()
-    max_score = calc_max_score(params, w)
+    max_score = calc_max_score(w)
     ranked = sorted(
         raw_jobs,
         key=lambda j: normalize(calc_raw_score(j, params, w), max_score),

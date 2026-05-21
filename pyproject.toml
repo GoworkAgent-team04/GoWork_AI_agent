@@ -25,6 +25,7 @@ uvicorn = {version = ">=0.30.0", extras = ["standard"]}
 pyjwt = ">=2.8.0"
 python-multipart = ">=0.0.9"
 json-repair = "^0.59.10"
+sentence-transformers = "^5.5.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0.0"

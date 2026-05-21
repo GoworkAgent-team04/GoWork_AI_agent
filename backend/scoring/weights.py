@@ -42,9 +42,3 @@ def load_weights() -> Weights:
 
     allowed = {f.name for f in Weights.__dataclass_fields__.values()}
     return Weights(**{k: v for k, v in data.items() if k in allowed})
-
-
-def save_weights(weights: Weights) -> None:
-    """학습된 가중치를 weights.json에 저장합니다."""
-    with open(_WEIGHTS_FILE, "w") as f:
-        json.dump(weights.__dict__, f, indent=2, ensure_ascii=False)
