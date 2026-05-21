@@ -3,14 +3,22 @@ FastAPI 애플리케이션 생성 및 설정
 
 실행:
   uvicorn backend.main:app --reload
+
+Flutter 웹 빌드:
+  cd frontend && flutter build web --release
+  → frontend/build/web/ 생성 후 FastAPI가 정적 파일 서빙
 """
 
+import os
 import time
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from backend.routers import chat, feedback, recommend, user
+
+_FLUTTER_WEB_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "build", "web")
 
 app = FastAPI(
     title="GoWork AI Agent API",
@@ -54,3 +62,9 @@ app.include_router(chat.router)
 app.include_router(user.router)
 app.include_router(recommend.router)
 app.include_router(feedback.router)
+
+# ─── Flutter 웹 정적 파일 서빙 ────────────────────────────────────
+# API 라우터 등록 후 마지막에 마운트 (API 경로가 우선)
+# flutter build web 실행 전에는 비활성화됨
+if os.path.isdir(_FLUTTER_WEB_DIR):
+    app.mount("/", StaticFiles(directory=_FLUTTER_WEB_DIR, html=True), name="frontend")
