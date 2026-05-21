@@ -21,9 +21,12 @@ async def recommend(
     LLM이 추출한 유저 선호도 파라미터 기반으로 공고를 추천합니다.
 
     처리 순서:
-    1. region 기반 1차 필터링
-    2. delta 가중치 점수 계산 후 0~1 정규화
-    3. rank score 기준 top3 반환
+    1. region / physical_limit 기반 1차 Hard Filtering
+    2. 파라미터 있는 항목만 score += base_weight * similarity 계산
+       - job_type: 임베딩 코사인 유사도
+       - physical_level / work_type / salary_min: rule-based
+       - senior_tag: 항상 평가
+    3. score / max_score(1.20) 정규화 후 rank score 기준 top3 반환
     """
     req = JobRequestDTO(
         user_id=user_id,

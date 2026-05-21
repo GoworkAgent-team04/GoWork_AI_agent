@@ -11,10 +11,11 @@ def search_jobs(params: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     조건에 맞는 일자리 목록을 반환합니다.
 
-    params:
+    Hard Filter:
         region         : 지역 (시/구/원문 ILIKE)
-        job_type       : 직종 키워드 (title_raw ILIKE)
         physical_limit : True면 LOW/MID 공고만 조회
+
+    job_type은 Soft Scoring에서만 사용 (Hard Filter 제외)
     """
     with get_db() as db:
         q = db.query(JobPosting)
@@ -28,9 +29,6 @@ def search_jobs(params: Dict[str, Any]) -> List[Dict[str, Any]]:
                     JobPosting.location_raw.ilike(region),
                 )
             )
-
-        if params.get("job_type"):
-            q = q.filter(JobPosting.title_raw.ilike(f"%{params['job_type']}%"))
 
         if params.get("physical_limit") is True:
             q = q.filter(

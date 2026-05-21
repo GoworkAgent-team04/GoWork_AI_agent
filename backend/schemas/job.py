@@ -25,7 +25,9 @@ class JobCard(BaseModel):
     deadline: Optional[str] = Field(None, description="마감일 (YYYY-MM-DD | 상시모집)")
     source_url: Optional[str] = Field(None, description="원본 공고 링크")
     physical_level: Optional[str] = Field(None, description="신체 강도 (LOW/MID/HIGH)")
-    senior_tag: Optional[bool] = Field(None, description="시니어 특화 공고 여부")
+    senior_tag: Optional[str] = Field(
+        None, description="시니어 태그 (SENIOR_ONLY/SENIOR_PREFERRED/ANY/MIDDLE_PREFERRED)"
+    )
     age_min: Optional[int] = Field(None, description="최소 나이 제한")
     age_max: Optional[int] = Field(None, description="최대 나이 제한")
 

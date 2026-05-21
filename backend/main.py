@@ -5,7 +5,9 @@ FastAPI 애플리케이션 생성 및 설정
   uvicorn backend.main:app --reload
 """
 
-from fastapi import FastAPI
+import time
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.routers import chat, feedback, recommend, user
@@ -27,6 +29,17 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+
+# ─── 응답 시간 미들웨어 ───────────────────────────────────────────
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    response.headers["X-Process-Time-Ms"] = f"{elapsed_ms:.2f}"
+    return response
+
 
 # ─── 미들웨어 ─────────────────────────────────────────────────────
 app.add_middleware(
