@@ -5,6 +5,9 @@ users id 1~10: 스킬 없는 유저
 users id 11~20: 스킬 있는 유저
 """
 
+import pytest
+from sqlalchemy.exc import IntegrityError
+
 from backend.repositories import feedback_repository, job_repository, user_repository
 
 # ─── User Repository ─────────────────────────────────────────────
@@ -147,9 +150,6 @@ def test_save_feedback_without_comment():
 
 def test_save_feedback_invalid_rating():
     """rating 범위 초과 시 DB 제약 위반"""
-    import pytest
-    from sqlalchemy.exc import IntegrityError
-
     with pytest.raises(IntegrityError):
         feedback_repository.save_feedback(
             reviewer_id=1,

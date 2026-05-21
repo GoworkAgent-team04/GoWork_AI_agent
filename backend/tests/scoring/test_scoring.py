@@ -70,15 +70,3 @@ def test_calc_raw_score_with_job_type(mock_job):
     params_with = JobRequestDTO(user_id=1, job_type="경비")
     params_without = JobRequestDTO(user_id=1)
     assert calc_raw_score(mock_job, params_with) >= calc_raw_score(mock_job, params_without)
-
-
-@pytest.fixture
-def mock_job():
-    return {
-        "title_raw": "아파트 경비원 모집",
-        "job_category_norm": None,
-        "work_type_norm": "PART_TIME",
-        "salary_min": 2000000,
-        "physical_level": "LOW",
-        "senior_tag": "SENIOR_PREFERRED",
-    }

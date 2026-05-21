@@ -2,20 +2,14 @@
 /users 엔드포인트 테스트
 """
 
-from fastapi.testclient import TestClient
 
-from backend.main import app
-
-client = TestClient(app)
-
-
-def test_get_user_not_found():
+def test_get_user_not_found(client):
     """존재하지 않는 유저 404"""
     response = client.get("/users/99999")
     assert response.status_code == 404
 
 
-def test_get_user_response_structure():
+def test_get_user_response_structure(client):
     """정상 응답 구조 확인"""
     response = client.get("/users/1")
     assert response.status_code == 200
@@ -29,7 +23,7 @@ def test_get_user_response_structure():
     assert "other_skills" in data
 
 
-def test_get_user_with_skills():
+def test_get_user_with_skills(client):
     """스킬 있는 유저 (id: 11~20) 조회"""
     response = client.get("/users/11")
     assert response.status_code == 200
@@ -37,7 +31,7 @@ def test_get_user_with_skills():
     assert data["id"] == 11
 
 
-def test_get_user_without_skills():
+def test_get_user_without_skills(client):
     """스킬 없는 유저 (id: 1~10) 조회"""
     response = client.get("/users/1")
     assert response.status_code == 200
