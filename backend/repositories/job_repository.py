@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import or_
@@ -5,6 +6,14 @@ from sqlalchemy import or_
 from backend.config import config
 from backend.database.connection import get_db
 from backend.models.orm import JobContact, JobPosting
+
+# 워크넷 work_type_raw 코드 → 표시 문자열 매핑
+_WORK_TYPE_RAW_MAP = {
+    "10": "전일제",
+    "11": "시간선택제(전일)",
+    "20": "시간제",
+    "21": "시간선택제(시간제)",
+}
 
 
 def search_jobs(params: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -14,11 +23,21 @@ def search_jobs(params: Dict[str, Any]) -> List[Dict[str, Any]]:
     Hard Filter:
         region         : 지역 (시/구/원문 ILIKE)
         physical_limit : True면 LOW/MID 공고만 조회
+        deadline       : 만료 공고 제외 (deadline_at >= 오늘)
 
     job_type은 Soft Scoring에서만 사용 (Hard Filter 제외)
     """
     with get_db() as db:
         q = db.query(JobPosting)
+
+        # 만료 공고 제외
+        today = date.today()
+        q = q.filter(
+            or_(
+                JobPosting.deadline_at.is_(None),
+                JobPosting.deadline_at >= today,
+            )
+        )
 
         if params.get("region"):
             region = f"%{params['region']}%"
@@ -69,6 +88,10 @@ def find_job_source_url(job_id: str) -> Optional[str]:
 
 
 def _posting_to_dict(p: JobPosting) -> Dict[str, Any]:
+    # work_type_norm이 NULL이면 raw 코드를 한글로 변환
+    work_type = p.work_type_norm or _WORK_TYPE_RAW_MAP.get(
+        str(p.work_type_raw or ""), p.work_type_raw
+    )
     return {
         "id": p.id,
         "title_raw": p.title_raw,
@@ -77,7 +100,7 @@ def _posting_to_dict(p: JobPosting) -> Dict[str, Any]:
         "location_district": p.location_district,
         "location_raw": p.location_raw,
         "job_category_norm": p.job_category_norm,
-        "work_type_norm": p.work_type_norm,
+        "work_type_norm": work_type,
         "work_type_raw": p.work_type_raw,
         "salary_raw": p.salary_raw,
         "salary_min": p.salary_min,

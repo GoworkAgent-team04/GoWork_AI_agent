@@ -33,23 +33,26 @@ logger = logging.getLogger(__name__)
 
 def _check_region_sufficient(collected_info: dict, db_profile: dict) -> tuple[bool, list]:
     """
-    region 충족 여부를 코드로 판단 (LLM 불필요).
-    - collected_info 또는 db_profile에 지역이 있으면 True
-    - 없거나 막연한 표현이면 False
+    region + job_type 충족 여부를 코드로 판단 (LLM 불필요).
+    - region: collected_info 또는 db_profile에 지역이 있고 막연한 표현이 아니면 OK
+    - job_type: collected_info에 직종이 있으면 OK
+    둘 다 있어야 True
     """
+    missing = []
+
     region = (
         (collected_info or {}).get("region")
         or (db_profile or {}).get("region_district")
         or (db_profile or {}).get("region_city")
     )
-    if not region:
-        return False, ["region"]
+    if not region or not _clean_region(str(region)):
+        missing.append("region")
 
-    # setup._clean_region 재사용 (막연한 표현 → None)
-    if not _clean_region(str(region)):
-        return False, ["region"]
+    job_type = (collected_info or {}).get("job_type")
+    if not job_type:
+        missing.append("job_type")
 
-    return True, []
+    return (len(missing) == 0), missing
 
 
 async def profile_checker_node(state: AgentState) -> dict:
