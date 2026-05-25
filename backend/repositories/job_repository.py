@@ -48,7 +48,12 @@ def find_job_by_id(job_id: str) -> Optional[Dict[str, Any]]:
         posting = db.get(JobPosting, job_id)
         if not posting:
             return None
-        contact = db.query(JobContact).filter(JobContact.posting_id == job_id).first()
+        contact = (
+            db.query(JobContact)
+            .filter(JobContact.posting_id == job_id)
+            .order_by(JobContact.id)
+            .first()
+        )
         result = _posting_to_dict(posting)
         if contact:
             result["phone_type"] = contact.phone_type

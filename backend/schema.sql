@@ -1,6 +1,6 @@
 -- ================================================================
 -- GoWork AI Agent - DB 스키마 및 목업 데이터
--- 실행: psql postgresql://localhost:5432/gowork -f backend/migrations/schema.sql
+-- 실행: psql postgresql://localhost:5432/gowork -f backend/schema.sql
 -- ================================================================
 
 

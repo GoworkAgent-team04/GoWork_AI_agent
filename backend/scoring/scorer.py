@@ -9,6 +9,8 @@
 
 from typing import Any, Dict, Optional
 
+import numpy as np
+
 from backend.schemas.job import JobRequestDTO
 from backend.scoring.category import text_similarity
 from backend.scoring.weights import Weights
@@ -23,9 +25,15 @@ _weights = Weights()
 
 
 def calc_raw_score(
-    job: Dict[str, Any], params: JobRequestDTO, w: Optional[Weights] = None
+    job: Dict[str, Any],
+    params: JobRequestDTO,
+    w: Optional[Weights] = None,
+    job_type_vec: Optional[np.ndarray] = None,
 ) -> float:
-    """파라미터 있는 항목만 base_weight * similarity 합산으로 원점수를 계산합니다."""
+    """파라미터 있는 항목만 base_weight * similarity 합산으로 원점수를 계산합니다.
+
+    job_type_vec: params.job_type의 pre-computed 임베딩. 여러 공고 일괄 처리 시 재사용해 성능을 개선합니다.
+    """
     if w is None:
         w = _weights
     score = 0.0
@@ -34,7 +42,7 @@ def calc_raw_score(
     if params.job_type:
         job_text = job.get("job_category_norm") or job.get("title_raw") or ""
         if job_text:
-            score += w.job_type * text_similarity(params.job_type, job_text)
+            score += w.job_type * text_similarity(params.job_type, job_text, vec1=job_type_vec)
 
     # 신체 강도
     if params.physical_limit is not None:

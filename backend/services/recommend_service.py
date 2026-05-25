@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 from backend.repositories import job_repository
 from backend.schemas.job import JobCard, JobRequestDTO
 from backend.scoring import calc_max_score, calc_raw_score, normalize
+from backend.scoring.category import encode_text
 
 TOP_N = 3
 
@@ -59,9 +60,10 @@ def get_recommendations(params: JobRequestDTO) -> List[JobCard]:
         return []
 
     max_score = calc_max_score()
+    job_type_vec = encode_text(params.job_type) if params.job_type else None
     ranked = sorted(
         raw_jobs,
-        key=lambda j: normalize(calc_raw_score(j, params), max_score),
+        key=lambda j: normalize(calc_raw_score(j, params, job_type_vec=job_type_vec), max_score),
         reverse=True,
     )
     return [_to_job_card(job) for job in ranked[:TOP_N]]

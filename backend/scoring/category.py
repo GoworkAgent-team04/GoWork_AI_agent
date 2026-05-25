@@ -21,12 +21,25 @@ def _get_model() -> SentenceTransformer:
     return _model
 
 
-def text_similarity(text1: str, text2: str) -> float:
-    """두 텍스트 간 코사인 유사도를 반환합니다 (0~1)."""
+def encode_text(text: str) -> np.ndarray:
+    """텍스트를 임베딩 벡터로 인코딩합니다."""
+    return _get_model().encode([text], convert_to_numpy=True)[0]
+
+
+def text_similarity(text1: str, text2: str, vec1: Optional[np.ndarray] = None) -> float:
+    """두 텍스트 간 코사인 유사도를 반환합니다 (0~1).
+
+    vec1이 주어지면 text1 인코딩을 생략하고 재사용합니다.
+    """
     model = _get_model()
-    embeddings = model.encode([text1, text2], convert_to_numpy=True)
-    cos_sim = float(
-        np.dot(embeddings[0], embeddings[1])
-        / (np.linalg.norm(embeddings[0]) * np.linalg.norm(embeddings[1]))
-    )
+    if vec1 is None:
+        embeddings = model.encode([text1, text2], convert_to_numpy=True)
+        v1, v2 = embeddings[0], embeddings[1]
+    else:
+        v1 = vec1
+        v2 = model.encode([text2], convert_to_numpy=True)[0]
+    norm = np.linalg.norm(v1) * np.linalg.norm(v2)
+    if norm == 0.0:
+        return 0.0
+    cos_sim = float(np.dot(v1, v2) / norm)
     return max(0.0, min(1.0, cos_sim))

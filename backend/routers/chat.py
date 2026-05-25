@@ -1,4 +1,5 @@
 import asyncio
+import logging
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -8,6 +9,7 @@ from agent.router import process_message
 from backend.schemas.chat import ChatRequestDTO, ChatResponseDTO
 
 router = APIRouter(tags=["Chat"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/chat", response_model=ChatResponseDTO, summary="채팅 메시지 전송")
@@ -26,7 +28,8 @@ async def chat(req: ChatRequestDTO):
             jobs=result["jobs"],
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception("chat error: %s", e)
+        raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다.")
 
 
 @router.post("/chat/stream", summary="채팅 스트리밍")
@@ -44,7 +47,8 @@ async def chat_stream(req: ChatRequestDTO):
                 yield text[i : i + chunk_size]
                 await asyncio.sleep(0.02)
         except Exception as e:
-            yield f"[오류] {str(e)}"
+            logger.exception("chat stream error: %s", e)
+            yield "[오류] 서버 오류가 발생했습니다."
 
     return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
 
