@@ -11,8 +11,9 @@ JOB_RECOMMEND 관련 노드 모음
                                         └─ 최대 재시도 → job_response_gen_node → END
 """
 
-import asyncio
+import logging
 
+import httpx
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
@@ -20,23 +21,10 @@ from agent.llm import fast_llm, main_llm
 from agent.nodes.setup import _clean_region
 from agent.parsers import RobustPydanticParser
 from agent.state import AgentState
-from backend.database.queries import _map_job_category, search_jobs
+from backend.config import config
 from backend.models.schemas import JobSearchParams
 
-# ─── 유사 직종 매핑 (파라미터 완화 시 인접 직종으로 검색 확대) ────────────
-RELATED_CATEGORIES: dict = {
-    "SECURITY": ["CLEANING", "DRIVING"],
-    "CLEANING": ["SECURITY", "ENVIRONMENT"],
-    "CARE": ["KITCHEN", "COUNSELING"],
-    "KITCHEN": ["CARE", "SALES"],
-    "DRIVING": ["DELIVERY", "SECURITY"],
-    "DELIVERY": ["DRIVING", "SALES"],
-    "SALES": ["KITCHEN", "OFFICE"],
-    "OFFICE": ["SALES", "COUNSELING"],
-    "PRODUCTION": ["ENVIRONMENT", "DELIVERY"],
-    "ENVIRONMENT": ["CLEANING", "PRODUCTION"],
-    "COUNSELING": ["CARE", "OFFICE"],
-}
+logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. Profile Checker Node
@@ -193,10 +181,32 @@ DB 프로필과 대화에서 수집된 정보를 모두 활용하세요.
 
 
 async def job_searcher_node(state: AgentState) -> dict:
+    """GET /recommend API를 호출해 스코어링된 공고 top3를 조회합니다."""
     params = state.get("search_params") or {}
     retry_count = state.get("retry_count", 0)
-    jobs = await asyncio.to_thread(search_jobs, params)
-    print(f"[JobSearch] retry={retry_count}, params={params}, found={len(jobs)}건")
+    user_id = state["user_id"]
+
+    # job_category_list는 /recommend API 미지원 → 제외
+    api_params = {k: v for k, v in params.items() if v is not None and k != "job_category_list"}
+    api_params["user_id"] = user_id
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{config.API_BASE_URL}/recommend",
+                params=api_params,
+                timeout=10.0,
+            )
+            if resp.status_code == 200:
+                jobs = resp.json().get("jobs", [])
+            else:
+                logger.warning("/recommend API 오류: status=%s", resp.status_code)
+                jobs = []
+    except Exception as e:
+        logger.exception("/recommend API 호출 실패: %s", e)
+        jobs = []
+
+    print(f"[JobSearch] retry={retry_count}, params={api_params}, found={len(jobs)}건")
     return {"jobs": jobs}
 
 
@@ -236,17 +246,9 @@ async def param_relaxer_node(state: AgentState) -> dict:
         print(f"[ParamRelax] 1차 완화 → {params}")
 
     elif retry_count == 1:
-        # ── 2차 완화: physical_limit 제거 + 유사 직종 확장 ────────
+        # ── 2차 완화: physical_limit 제거 ─────────────────────────
+        # job_type은 /recommend scoring 엔진의 임베딩 유사도가 유사 직종을 자동 처리
         params.pop("physical_limit", None)
-
-        job_type = params.get("job_type")
-        if job_type:
-            category = _map_job_category(job_type)
-            if category and category in RELATED_CATEGORIES:
-                related = RELATED_CATEGORIES[category]
-                params["job_category_list"] = [category] + related
-                params.pop("job_type", None)
-                print(f"[ParamRelax] 2차 완화: {category} → {params['job_category_list']}")
         print(f"[ParamRelax] 2차 완화 → {params}")
 
     return {
@@ -364,8 +366,8 @@ async def job_response_gen_node(state: AgentState) -> dict:
             "jobs": [],
         }
 
-    # ── 공고 카드: DB row를 알고리즘으로 직접 포맷팅 (LLM 없음) ──────
-    job_cards = [_format_job_card(row) for row in jobs]
+    # /recommend API가 이미 JobCard 형태로 반환 → 별도 포맷팅 불필요
+    job_cards = jobs
 
     # ── 도입 텍스트: LLM은 건수와 조건만 보고 한두 문장 생성 ───────────
     collected = state["collected_info"]

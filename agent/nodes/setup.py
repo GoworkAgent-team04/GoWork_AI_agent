@@ -11,7 +11,9 @@ setup_node
 """
 
 import asyncio
+import logging
 
+import httpx
 from langchain_core.prompts import ChatPromptTemplate
 
 from agent.llm import fast_llm
@@ -19,8 +21,10 @@ from agent.memory import memory
 from agent.nodes.intent import classify_intent
 from agent.parsers import RobustPydanticParser
 from agent.state import AgentState
-from backend.database.queries import get_user_profile
+from backend.config import config
 from backend.models.schemas import IntentType, ProfileInfo
+
+logger = logging.getLogger(__name__)
 
 _parser = RobustPydanticParser(pydantic_object=ProfileInfo)
 
@@ -112,6 +116,21 @@ async def _extract_profile(user_message: str) -> dict:
         return {}
 
 
+async def _fetch_user_profile(user_id: str) -> dict:
+    """GET /users/{user_id} API 호출로 유저 프로필 조회."""
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{config.API_BASE_URL}/users/{user_id}",
+                timeout=5.0,
+            )
+            if resp.status_code == 200:
+                return resp.json()
+    except Exception as e:
+        logger.warning("유저 프로필 API 호출 실패 (user_id=%s): %s", user_id, e)
+    return {}
+
+
 async def setup_node(state: AgentState) -> dict:
     user_id = state["user_id"]
     user_message = state["user_message"]
@@ -124,11 +143,11 @@ async def setup_node(state: AgentState) -> dict:
     history_messages = memory.get_history(user_id)
 
     # ── 3개 작업 동시 실행 ────────────────────────────────────────
-    # ① 프로필 추출  ② 의도 분류  ③ DB 프로필 조회
+    # ① 프로필 추출  ② 의도 분류  ③ GET /users/{user_id} API 호출
     new_info, intent_result, db_profile = await asyncio.gather(
         _extract_profile(user_message),
         classify_intent(user_message, history_text),
-        asyncio.to_thread(get_user_profile, user_id),
+        _fetch_user_profile(user_id),
     )
     db_profile = db_profile or {}
 

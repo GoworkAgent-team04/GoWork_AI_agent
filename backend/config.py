@@ -31,6 +31,9 @@ class Config:
         os.getenv("MAX_JOB_RESULTS", "5")
     )  # 최종 반환 공고 수 (에이전트 재검색 루프용)
 
+    # 내부 API
+    API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8000")
+
     # 디버깅
     LOG_LLM: bool = True  # LLM 입출력 터미널 로그 (운영 시 False로 변경)
 
