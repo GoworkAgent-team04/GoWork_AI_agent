@@ -17,7 +17,7 @@ import httpx
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
-from agent.llm import fast_llm, main_llm
+from agent.llm import fast_llm
 from agent.nodes.setup import _clean_region
 from agent.parsers import RobustPydanticParser
 from agent.state import AgentState
@@ -72,10 +72,14 @@ async def profile_checker_node(state: AgentState) -> dict:
         }
 
     # ── 정보 충분 → 검색 파라미터 추출 (LLM 1회) ─────────────────
+    # address는 거주지 주소이므로 region으로 오해하지 않도록 제외
+    # careers/certifications/skills만 직종 추론 컨텍스트로 전달
+    db = state["db_profile"] or {}
+    profile_context = {k: v for k, v in db.items() if k not in ("address", "id") and v}
     try:
         params = await _param_extractor_chain.ainvoke(
             {
-                "db_profile": str(state["db_profile"]),
+                "db_profile": str(profile_context),
                 "collected_info": collected,
                 "history": state["history_text"],
                 "format_instructions": _param_extractor_parser.get_format_instructions(),
@@ -110,11 +114,15 @@ _question_gen_chain = (
 - 반드시 한 번에 하나의 질문만 하세요
 - 쉽고 간단한 표현을 사용하세요
 - 딱딱하지 않고 대화하듯 물어보세요
+- 사용자 프로필(경력·나이 등)을 참고해 자연스럽게 연결하세요
 - 반드시 한국어로 답변하세요""",
             ),
             (
                 "human",
-                """[부족한 정보 항목]
+                """[사용자 프로필]
+{user_profile}
+
+[부족한 정보 항목]
 {missing_fields}
 
 [대화 기록]
@@ -129,9 +137,35 @@ _question_gen_chain = (
 )
 
 
+def _build_user_profile_summary(db_profile: dict) -> str:
+    """db_profile에서 대화 컨텍스트에 유용한 정보만 추려 텍스트로 변환"""
+    if not db_profile:
+        return "프로필 정보 없음"
+    parts = []
+    if db_profile.get("name"):
+        parts.append(f"이름: {db_profile['name']}")
+    if db_profile.get("age"):
+        parts.append(f"나이: {db_profile['age']}세")
+    careers = db_profile.get("careers") or []
+    if careers:
+        career_strs = [
+            f"{c.get('job_title', '')}({c.get('company_name', '')})" for c in careers[:3]
+        ]
+        parts.append(f"경력: {', '.join(career_strs)}")
+    certs = db_profile.get("certifications") or []
+    if certs:
+        parts.append(f"자격증: {', '.join(str(c) for c in certs[:3])}")
+    skills = (db_profile.get("other_skills") or []) + (db_profile.get("document_skills") or [])
+    if skills:
+        parts.append(f"보유스킬: {', '.join(str(s) for s in skills[:3])}")
+    return "\n".join(parts) if parts else "프로필 정보 없음"
+
+
 async def question_gen_node(state: AgentState) -> dict:
+    user_profile = _build_user_profile_summary(state.get("db_profile") or {})
     question = await _question_gen_chain.ainvoke(
         {
+            "user_profile": user_profile,
             "missing_fields": state["missing_fields"],
             "history": state["history_text"],
         }
@@ -334,13 +368,17 @@ _intro_chain = (
 - 회사명·급여·위치 등 공고의 구체적인 내용은 절대 언급하지 마세요
 - 검색 건수와 검색 조건(지역·직종)만 자연스럽게 언급하세요
 - 검색 범위를 넓혀서 찾은 경우(retry_count > 0) 이 사실을 언급하세요
+- 사용자 프로필(경력 등)을 참고해 공감하는 말투로 작성하세요
 - 1~2문장으로 짧게, 이해하기 쉬운 말투로 작성하세요
 - 마지막에 관심 있는 공고가 있는지 자연스럽게 물어보세요
 - 반드시 한국어로 답변하세요""",
             ),
             (
                 "human",
-                """[검색 건수]
+                """[사용자 프로필]
+{user_profile}
+
+[검색 건수]
 {job_count}건
 
 [사용자 조건]
@@ -356,7 +394,7 @@ _intro_chain = (
             ),
         ]
     )
-    | main_llm
+    | fast_llm
     | StrOutputParser()
 )
 
@@ -380,6 +418,7 @@ async def job_response_gen_node(state: AgentState) -> dict:
     collected = state["collected_info"]
     intro = await _intro_chain.ainvoke(
         {
+            "user_profile": _build_user_profile_summary(state.get("db_profile") or {}),
             "job_count": len(jobs),
             "user_conditions": collected.model_dump()
             if hasattr(collected, "model_dump")
