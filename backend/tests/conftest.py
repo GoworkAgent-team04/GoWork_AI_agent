@@ -10,6 +10,12 @@ def client():
 
 
 @pytest.fixture
-def auth_token(client):
-    response = client.post("/auth/token", json={"user_id": "test-user-1"})
-    return response.json()["access_token"]
+def mock_job():
+    return {
+        "title_raw": "아파트 경비원 모집",
+        "job_category_norm": None,
+        "work_type_norm": "PART_TIME",
+        "salary_min": 2000000,
+        "physical_level": "LOW",
+        "senior_tag": "SENIOR_PREFERRED",
+    }

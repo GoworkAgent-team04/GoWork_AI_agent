@@ -50,7 +50,7 @@ jobs:
           conn = psycopg2.connect('postgresql://test:test@localhost:5432/testdb')
           conn.autocommit = True
           cur = conn.cursor()
-          cur.execute(open('backend/migrations/create_users_and_applications.sql').read())
+          cur.execute(open('backend/schema.sql').read())
           conn.close()
           "
 
