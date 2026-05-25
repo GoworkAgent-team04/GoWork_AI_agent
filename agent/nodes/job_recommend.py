@@ -17,7 +17,7 @@ import httpx
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
-from agent.llm import fast_llm
+from agent.llm import fast_llm, main_llm
 from agent.nodes.setup import _clean_region
 from agent.parsers import RobustPydanticParser
 from agent.state import AgentState
@@ -43,10 +43,6 @@ def _check_region_sufficient(collected_info: dict, db_profile: dict) -> tuple[bo
     region = (collected_info or {}).get("region")
     if not region or not _clean_region(str(region)):
         missing.append("region")
-
-    job_type = (collected_info or {}).get("job_type")
-    if not job_type:
-        missing.append("job_type")
 
     return (len(missing) == 0), missing
 
@@ -394,7 +390,7 @@ _intro_chain = (
             ),
         ]
     )
-    | fast_llm
+    | main_llm
     | StrOutputParser()
 )
 
