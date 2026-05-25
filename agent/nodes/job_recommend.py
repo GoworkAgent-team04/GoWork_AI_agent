@@ -40,11 +40,7 @@ def _check_region_sufficient(collected_info: dict, db_profile: dict) -> tuple[bo
     """
     missing = []
 
-    region = (
-        (collected_info or {}).get("region")
-        or (db_profile or {}).get("region_district")
-        or (db_profile or {}).get("region_city")
-    )
+    region = (collected_info or {}).get("region")
     if not region or not _clean_region(str(region)):
         missing.append("region")
 
@@ -88,7 +84,7 @@ async def profile_checker_node(state: AgentState) -> dict:
         search_params = params.model_dump(exclude_none=True)
     except Exception as e:
         print(f"[ProfileChecker] param 추출 오류, 기본 region만 사용: {e}")
-        region = collected.get("region") or (state["db_profile"] or {}).get("region_district")
+        region = collected.get("region")
         search_params = {"region": region} if region else {}
 
     return {
@@ -155,8 +151,14 @@ _param_extractor_chain = (
             (
                 "system",
                 """대화 내용에서 일자리 검색 파라미터를 추출합니다.
-DB 프로필과 대화에서 수집된 정보를 모두 활용하세요.
-확신할 수 없는 값은 null로 설정하세요.
+
+규칙:
+- region: 반드시 [대화에서 수집된 정보]의 region 값만 사용하세요.
+  DB 프로필의 address(거주지 주소)는 절대 region으로 사용하지 마세요.
+  사용자가 명시적으로 언급한 지역이 없으면 null로 설정하세요.
+- 나머지 파라미터(job_type, physical_limit, work_type, salary_min)는
+  DB 프로필과 대화에서 수집된 정보를 모두 활용하세요.
+- 확신할 수 없는 값은 null로 설정하세요.
 
 {format_instructions}""",
             ),
