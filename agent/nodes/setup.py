@@ -57,6 +57,17 @@ _extractor_chain = (
 - 이번 메시지에서 언급된 것만 추출하세요
 - 간접적인 표현도 적극적으로 해석하세요
 - 언급되지 않은 항목은 반드시 null로 설정하세요
+- 추측하거나 지어내지 마세요 — 메시지에 없으면 null
+
+예시:
+  입력: "일자리 추천받고 싶어요"
+  출력: {{"job_type": null, "region": null, "physical_limit": null, "work_type": null, "salary_min": null, "experience": null}}
+
+  입력: "안녕하세요, 일 구하고 싶어요"
+  출력: {{"job_type": null, "region": null, "physical_limit": null, "work_type": null, "salary_min": null, "experience": null}}
+
+  입력: "서울 강남구에서 경비 일 구해요"
+  출력: {{"job_type": "경비", "region": "강남구", "physical_limit": null, "work_type": null, "salary_min": null, "experience": null}}
 
 {format_instructions}""",
             ),
