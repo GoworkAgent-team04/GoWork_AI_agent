@@ -186,9 +186,10 @@ _param_extractor_chain = (
 - region: 반드시 [대화에서 수집된 정보]의 region 값만 사용하세요.
   DB 프로필의 address(거주지 주소)는 절대 region으로 사용하지 마세요.
   사용자가 명시적으로 언급한 지역이 없으면 null로 설정하세요.
+- job_type: 반드시 문자열 하나만 반환하세요. 경력이 여러 개면 가장 최근 것 하나만 선택하세요.
 - work_type: 반드시 "full_time" / "part_time" / "any" 중 하나만 사용하세요.
   한글(시간제/전일제) → 각각 "part_time" / "full_time"으로 변환하세요.
-- 나머지 파라미터(job_type, physical_limit, salary_min)는
+- 나머지 파라미터(physical_limit, salary_min)는
   DB 프로필과 대화에서 수집된 정보를 모두 활용하세요.
 - 확신할 수 없는 값은 null로 설정하세요.
 
