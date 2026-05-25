@@ -17,6 +17,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
 from agent.llm import fast_llm, main_llm
+from agent.nodes.setup import _clean_region
 from agent.parsers import RobustPydanticParser
 from agent.state import AgentState
 from backend.database.queries import _map_job_category, search_jobs
@@ -41,10 +42,6 @@ RELATED_CATEGORIES: dict = {
 # 1. Profile Checker Node
 # ─────────────────────────────────────────────────────────────────────────────
 
-# 거리 선호 표현 (지역명이 아님)
-_VAGUE_LOCATION_SUFFIXES = ("쪽", "이요", "요", "에서", "근처", "동네")
-_VAGUE_LOCATIONS = {"집", "집근처", "근처", "동네", "우리동네", "가까운곳", "멀지않은곳"}
-
 
 def _check_region_sufficient(collected_info: dict, db_profile: dict) -> tuple[bool, list]:
     """
@@ -60,9 +57,8 @@ def _check_region_sufficient(collected_info: dict, db_profile: dict) -> tuple[bo
     if not region:
         return False, ["region"]
 
-    # 막연한 표현 필터
-    normalized = str(region).replace(" ", "")
-    if normalized in _VAGUE_LOCATIONS:
+    # setup._clean_region 재사용 (막연한 표현 → None)
+    if not _clean_region(str(region)):
         return False, ["region"]
 
     return True, []
