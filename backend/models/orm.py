@@ -16,13 +16,14 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Date,
+    Float,
     Integer,
     SmallInteger,
     String,
     Text,
     func,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database.connection import Base
@@ -144,6 +145,7 @@ class JobPosting(Base):
     status_norm: Mapped[str] = mapped_column(String(20))
     has_phone: Mapped[bool] = mapped_column(Boolean, default=False)
     phone_masked: Mapped[Optional[str]]
+    embedding: Mapped[Optional[list]] = mapped_column(ARRAY(Float), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
 

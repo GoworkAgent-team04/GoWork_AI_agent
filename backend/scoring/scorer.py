@@ -29,20 +29,25 @@ def calc_raw_score(
     params: JobRequestDTO,
     w: Optional[Weights] = None,
     job_type_vec: Optional[np.ndarray] = None,
+    job_type_sim: Optional[float] = None,
 ) -> float:
     """파라미터 있는 항목만 base_weight * similarity 합산으로 원점수를 계산합니다.
 
-    job_type_vec: params.job_type의 pre-computed 임베딩. 여러 공고 일괄 처리 시 재사용해 성능을 개선합니다.
+    job_type_sim: 사전 계산된 직종 유사도. 배치 처리 시 주입받아 text_similarity 호출을 생략합니다.
+    job_type_vec: fallback용 pre-computed 임베딩 (job_type_sim 없을 때만 사용).
     """
     if w is None:
         w = _weights
     score = 0.0
 
-    # 직종: 임베딩 코사인 유사도
+    # 직종: 사전 계산된 유사도 우선 사용, 없으면 개별 계산
     if params.job_type:
-        job_text = job.get("job_category_norm") or job.get("title_raw") or ""
-        if job_text:
-            score += w.job_type * text_similarity(params.job_type, job_text, vec1=job_type_vec)
+        if job_type_sim is not None:
+            score += w.job_type * job_type_sim
+        else:
+            job_text = job.get("job_category_norm") or job.get("title_raw") or ""
+            if job_text:
+                score += w.job_type * text_similarity(params.job_type, job_text, vec1=job_type_vec)
 
     # 신체 강도
     if params.physical_limit is not None:
