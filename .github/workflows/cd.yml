@@ -47,6 +47,9 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: ECR_REGISTRY,ECR_REPOSITORY,IMAGE_TAG,AWS_REGION
           script: |
+            # 디스크 정리 (사용하지 않는 이미지/컨테이너 제거)
+            docker system prune -af --volumes || true
+
             # ECR 로그인
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
               docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
