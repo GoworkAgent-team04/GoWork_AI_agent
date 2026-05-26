@@ -1,5 +1,7 @@
 from typing import Any, Dict, List, Optional
 
+import numpy as np
+
 from backend.repositories import job_repository
 from backend.schemas.job import JobCard, JobRequestDTO
 from backend.scoring import calc_max_score, calc_raw_score, normalize
@@ -36,14 +38,41 @@ def _to_job_card(job: Dict[str, Any]) -> JobCard:
     )
 
 
+def _batch_job_type_similarities(
+    jobs: List[Dict[str, Any]], job_type: Optional[str]
+) -> List[Optional[float]]:
+    """전체 공고의 직종 유사도를 배치로 계산합니다.
+
+    embedding이 저장된 공고는 DB 벡터를 사용하고,
+    없는 공고는 None을 반환해 scorer에서 개별 계산하도록 fallback합니다.
+    """
+    if not job_type:
+        return [None] * len(jobs)
+
+    query_vec = encode_text(job_type)
+    query_norm = query_vec / (np.linalg.norm(query_vec) + 1e-8)
+
+    has_emb_indices = [i for i, j in enumerate(jobs) if j.get("embedding")]
+    sims: List[Optional[float]] = [None] * len(jobs)
+
+    if has_emb_indices:
+        vecs = np.array([jobs[i]["embedding"] for i in has_emb_indices], dtype=np.float32)
+        norms = np.linalg.norm(vecs, axis=1, keepdims=True) + 1e-8
+        batch_sims = (vecs / norms) @ query_norm
+        for i, sim in zip(has_emb_indices, batch_sims):
+            sims[i] = float(np.clip(sim, 0.0, 1.0))
+
+    return sims
+
+
 def get_recommendations(params: JobRequestDTO) -> List[JobCard]:
     """
-    지역 기반 1차 필터링 후 rank score 기준 top3 공고를 반환합니다.
+    지역 기반 필터링 후 임베딩 배치 유사도 기준 top3 공고를 반환합니다.
 
     처리 순서:
-        1. region + job_type + physical_limit으로 1차 필터링 (DB 쿼리)
-        2. delta 가중치 원점수 계산
-        3. 0~1 정규화 후 rank score 내림차순 정렬
+        1. region + physical_limit으로 DB 필터링 (전체 조회, limit 없음)
+        2. 직종 유사도 배치 계산 (저장된 임베딩 활용)
+        3. 다중 가중치 원점수 계산 후 정규화
         4. TOP_N 반환
     """
     raw_jobs = job_repository.search_jobs(
@@ -60,10 +89,14 @@ def get_recommendations(params: JobRequestDTO) -> List[JobCard]:
         return []
 
     max_score = calc_max_score()
-    job_type_vec = encode_text(params.job_type) if params.job_type else None
+    job_type_sims = _batch_job_type_similarities(raw_jobs, params.job_type)
+
     ranked = sorted(
-        raw_jobs,
-        key=lambda j: normalize(calc_raw_score(j, params, job_type_vec=job_type_vec), max_score),
+        range(len(raw_jobs)),
+        key=lambda i: normalize(
+            calc_raw_score(raw_jobs[i], params, job_type_sim=job_type_sims[i]),
+            max_score,
+        ),
         reverse=True,
     )
-    return [_to_job_card(job) for job in ranked[:TOP_N]]
+    return [_to_job_card(raw_jobs[i]) for i in ranked[:TOP_N]]

@@ -12,6 +12,7 @@ setup_node
 
 import asyncio
 import logging
+import time
 
 import httpx
 from langchain_core.prompts import ChatPromptTemplate
@@ -155,11 +156,13 @@ async def setup_node(state: AgentState) -> dict:
 
     # ── 3개 작업 동시 실행 ────────────────────────────────────────
     # ① 프로필 추출  ② 의도 분류  ③ GET /users/{user_id} API 호출
+    t0 = time.perf_counter()
     new_info, intent_result, db_profile = await asyncio.gather(
         _extract_profile(user_message),
         classify_intent(user_message, history_text),
         _fetch_user_profile(user_id),
     )
+    print(f"[Setup] gather(추출+의도+프로필) ⏱ {time.perf_counter() - t0:.2f}s")
     db_profile = db_profile or {}
 
     # 추출된 조건 정보 누적 업데이트
