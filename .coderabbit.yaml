@@ -11,6 +11,7 @@ reviews:
     - "!poetry.lock"
     - "!**/__pycache__/**"
     - "!**/*.pyc"
+    - "!frontend/**"
 
   path_instructions:
     - path: "agent/**"
