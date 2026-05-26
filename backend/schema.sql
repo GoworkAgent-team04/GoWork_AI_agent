@@ -71,6 +71,59 @@ CREATE TABLE IF NOT EXISTS feedbacks (
 );
 
 
+CREATE TABLE IF NOT EXISTS job_posting (
+    id               uuid         PRIMARY KEY,
+    platform_id      uuid         NOT NULL,
+    source_job_id    varchar(100),
+    title_raw        varchar(200) NOT NULL,
+    company_raw      varchar(100),
+    description_raw  text,
+    source_url       varchar(500) NOT NULL,
+    location_raw     varchar(200),
+    location_city    varchar(50),
+    location_district varchar(50),
+    work_type_raw    text,
+    work_type_norm   varchar(20),
+    schedule_raw     varchar(200),
+    salary_raw       varchar(200),
+    salary_type_norm varchar(20),
+    salary_min       int,
+    salary_max       int,
+    age_min          int,
+    age_max          int,
+    senior_tag       varchar(30),
+    physical_level   varchar(10),
+    industry_raw     varchar(100),
+    industry_norm    varchar(30),
+    job_category_raw varchar(100),
+    job_category_norm varchar(30),
+    task_keywords    text,
+    headcount        int,
+    education_min    varchar(50),
+    career_type      varchar(20),
+    apply_method     text,
+    period_start     date,
+    period_end       date,
+    posted_at        date,
+    deadline_at      date,
+    deadline_type    varchar(20) NOT NULL DEFAULT 'DATE',
+    collected_at     timestamp   NOT NULL DEFAULT now(),
+    status_norm      varchar(20) NOT NULL DEFAULT 'ACTIVE',
+    has_phone        boolean     NOT NULL DEFAULT false,
+    phone_masked     varchar(20),
+    created_at       timestamp   NOT NULL DEFAULT now(),
+    updated_at       timestamp   NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS job_contact (
+    id               uuid         PRIMARY KEY,
+    posting_id       uuid         NOT NULL,
+    phone_encrypted  varchar(200) NOT NULL,
+    phone_type       varchar(20)  NOT NULL,
+    department       varchar(100),
+    created_at       timestamp    NOT NULL DEFAULT now()
+);
+
 -- ─── 2. 인덱스 ──────────────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_careers_user_id         ON careers (user_id);
