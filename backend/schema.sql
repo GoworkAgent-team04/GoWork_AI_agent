@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS job_contact (
     created_at       timestamp    NOT NULL DEFAULT now()
 );
 
+
 -- ─── 2. 인덱스 ──────────────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_careers_user_id         ON careers (user_id);
@@ -170,6 +171,7 @@ INSERT INTO job_posting (
     NULL, 'OPEN', 'ACTIVE', now()
 )
 ON CONFLICT DO NOTHING;
+
 
 -- ─── 3. 목업 데이터 ─────────────────────────────────────────────
 -- 경력/자격증/보유능력 없는 사용자 10명 (id: 1~10)
