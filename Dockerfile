@@ -37,6 +37,7 @@ COPY --from=model-downloader /root/.cache/huggingface /root/.cache/huggingface
 # 소스 복사
 COPY agent/ ./agent/
 COPY backend/ ./backend/
+COPY scripts/ ./scripts/
 COPY pyproject.toml ./
 
 # Flutter 웹 빌드 결과물 복사 (FastAPI가 / 경로로 서빙)
