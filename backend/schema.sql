@@ -111,6 +111,7 @@ CREATE TABLE IF NOT EXISTS job_posting (
     status_norm      varchar(20) NOT NULL DEFAULT 'ACTIVE',
     has_phone        boolean     NOT NULL DEFAULT false,
     phone_masked     varchar(20),
+    embedding        float4[],
     created_at       timestamp   NOT NULL DEFAULT now(),
     updated_at       timestamp   NOT NULL DEFAULT now()
 );
