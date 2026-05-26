@@ -39,6 +39,9 @@ COPY agent/ ./agent/
 COPY backend/ ./backend/
 COPY pyproject.toml ./
 
+# Flutter 웹 빌드 결과물 복사 (FastAPI가 / 경로로 서빙)
+COPY frontend/build/web ./frontend/build/web
+
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
