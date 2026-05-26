@@ -55,6 +55,9 @@ jobs:
           envs: ECR_REGISTRY,ECR_REPOSITORY,AWS_REGION,DATABASE_URL,GROQ_API_KEY,API_BASE_URL
           script: |
             IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+            DATABASE_URL=$(echo "$DATABASE_URL" | tr -d '\n\r')
+            GROQ_API_KEY=$(echo "$GROQ_API_KEY" | tr -d '\n\r')
+            API_BASE_URL=$(echo "$API_BASE_URL" | tr -d '\n\r')
 
             # 디스크 정리 (사용하지 않는 이미지/컨테이너 제거)
             docker system prune -af --volumes || true
