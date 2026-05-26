@@ -1,6 +1,6 @@
 -- ================================================================
 -- GoWork AI Agent - DB 스키마 및 목업 데이터
--- 실행: psql postgresql://localhost:5432/gowork -f backend/migrations/schema.sql
+-- 실행: psql postgresql://localhost:5432/gowork -f backend/schema.sql
 -- ================================================================
 
 
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS feedbacks (
     reviewer_id  bigint       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     job_id       varchar(36),
     rating       smallint     CHECK (rating BETWEEN 1 AND 5),
-    comment      text,
+    comment      text        DEFAULT NULL,
     created_at   timestamp    NOT NULL DEFAULT now()
 );
 

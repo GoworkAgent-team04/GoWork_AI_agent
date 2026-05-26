@@ -4,9 +4,11 @@ from pydantic import BaseModel, Field
 
 
 class JobRequestDTO(BaseModel):
-    user_id: int = Field(..., description="유저 ID")
-    job_type: Optional[str] = Field(None, description="희망 직종 (예: 경비, 청소)")
-    region: Optional[str] = Field(None, description="희망 근무 지역 (예: 강남구, 서울)")
+    user_id: int = Field(..., gt=0, description="유저 ID")
+    job_type: Optional[str] = Field(None, min_length=1, description="희망 직종 (예: 경비, 청소)")
+    region: Optional[str] = Field(
+        None, min_length=1, description="희망 근무 지역 (예: 강남구, 서울)"
+    )
     physical_limit: Optional[bool] = Field(None, description="신체 제약 여부")
     work_type: Optional[str] = Field(None, description="근무 형태 (part_time | full_time | any)")
     salary_min: Optional[int] = Field(None, ge=0, description="최소 희망 급여 (원, 예: 1500000)")
@@ -23,7 +25,9 @@ class JobCard(BaseModel):
     deadline: Optional[str] = Field(None, description="마감일 (YYYY-MM-DD | 상시모집)")
     source_url: Optional[str] = Field(None, description="원본 공고 링크")
     physical_level: Optional[str] = Field(None, description="신체 강도 (LOW/MID/HIGH)")
-    senior_tag: Optional[bool] = Field(None, description="시니어 특화 공고 여부")
+    senior_tag: Optional[str] = Field(
+        None, description="시니어 태그 (SENIOR_ONLY/SENIOR_PREFERRED/ANY/MIDDLE_PREFERRED)"
+    )
     age_min: Optional[int] = Field(None, description="최소 나이 제한")
     age_max: Optional[int] = Field(None, description="최대 나이 제한")
 

@@ -302,26 +302,31 @@ def get_user_profile(user_id: str) -> Optional[Dict]:
         return dict(result._mapping) if result else None
 
 
+# 모듈 로드 시 허용된 컬럼별 쿼리를 미리 빌드 (런타임에 컬럼명 삽입 없음)
+_ALLOWED_UPDATE_FIELDS = {
+    "region_city",
+    "region_district",
+    "preferred_job_category",
+    "preferred_work_type",
+    "physical_level",
+    "career_type",
+    "experience_desc",
+}
+_UPDATE_QUERIES = {
+    field: text(f"UPDATE users SET {field} = :value, updated_at = now() WHERE id = :user_id")
+    for field in _ALLOWED_UPDATE_FIELDS
+}
+
+
 def update_user_profile(user_id: str, field: str, value: Any) -> bool:
     """사용자 프로필의 특정 필드를 수정합니다."""
-    allowed_fields = {
-        "region_city",
-        "region_district",
-        "preferred_job_category",
-        "preferred_work_type",
-        "physical_level",
-        "career_type",
-        "experience_desc",
-    }
-    if field not in allowed_fields:
+    query = _UPDATE_QUERIES.get(field)
+    if query is None:
         return False
 
     with get_db() as db:
         try:
-            db.execute(
-                text(f"UPDATE users SET {field} = :value, updated_at = now() WHERE id = :user_id"),
-                {"value": value, "user_id": user_id},
-            )
+            db.execute(query, {"value": value, "user_id": user_id})
             db.commit()
             return True
         except Exception:

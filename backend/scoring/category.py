@@ -1,76 +1,45 @@
 """
-직종 카테고리 추론 및 유사도 모듈
+직종 텍스트 유사도 모듈 (임베딩 기반)
+
+sentence-transformers를 사용해 한국어 텍스트 간 코사인 유사도를 계산합니다.
+모델은 최초 호출 시 1회 로드 후 메모리에 캐싱됩니다.
 """
 
-from typing import Dict, Optional
+from typing import Optional
 
-# ─── 직종 키워드 → 카테고리 매핑 ──────────────────────────────────
+import numpy as np
+from sentence_transformers import SentenceTransformer
 
-_KEYWORD_TO_CATEGORY: Dict[str, str] = {
-    "경비": "SECURITY",
-    "보안": "SECURITY",
-    "시설관리": "SECURITY",
-    "청소": "CLEANING",
-    "환경미화": "CLEANING",
-    "요양": "CARE",
-    "돌봄": "CARE",
-    "케어": "CARE",
-    "간병": "CARE",
-    "요양보호사": "CARE",
-    "주방": "KITCHEN",
-    "조리": "KITCHEN",
-    "요리": "KITCHEN",
-    "식당": "KITCHEN",
-    "운전": "DRIVING",
-    "드라이버": "DRIVING",
-    "기사": "DRIVING",
-    "판매": "SALES",
-    "영업": "SALES",
-    "매장": "SALES",
-    "사무": "OFFICE",
-    "행정": "OFFICE",
-    "총무": "OFFICE",
-    "생산": "PRODUCTION",
-    "제조": "PRODUCTION",
-    "공장": "PRODUCTION",
-    "배달": "DELIVERY",
-    "배송": "DELIVERY",
-    "택배": "DELIVERY",
-    "상담": "COUNSELING",
-    "환경": "ENVIRONMENT",
-}
-
-# ─── 카테고리 간 유사도 행렬 (단방향 정의, 조회 시 양방향 처리) ────
-
-_CATEGORY_SIMILARITY: Dict[tuple, float] = {
-    ("SECURITY", "CLEANING"): 0.6,
-    ("SECURITY", "DRIVING"): 0.5,
-    ("SECURITY", "ENVIRONMENT"): 0.4,
-    ("CLEANING", "ENVIRONMENT"): 0.7,
-    ("CARE", "COUNSELING"): 0.6,
-    ("CARE", "KITCHEN"): 0.5,
-    ("KITCHEN", "SALES"): 0.4,
-    ("DRIVING", "DELIVERY"): 0.8,
-    ("DRIVING", "SECURITY"): 0.5,
-    ("DELIVERY", "SALES"): 0.4,
-    ("SALES", "OFFICE"): 0.5,
-    ("OFFICE", "COUNSELING"): 0.6,
-    ("PRODUCTION", "ENVIRONMENT"): 0.5,
-    ("PRODUCTION", "DELIVERY"): 0.4,
-    ("COUNSELING", "CARE"): 0.6,
-}
+_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
+_model: Optional[SentenceTransformer] = None
 
 
-def infer_category(text: str) -> Optional[str]:
-    """키워드 매칭으로 직종 카테고리를 추론합니다."""
-    for keyword, category in _KEYWORD_TO_CATEGORY.items():
-        if keyword in text:
-            return category
-    return None
+def _get_model() -> SentenceTransformer:
+    global _model
+    if _model is None:
+        _model = SentenceTransformer(_MODEL_NAME)
+    return _model
 
 
-def category_similarity(cat1: str, cat2: str) -> float:
-    """두 카테고리 간 유사도를 반환합니다 (0~1). 동일 카테고리는 1.0."""
-    if cat1 == cat2:
-        return 1.0
-    return _CATEGORY_SIMILARITY.get((cat1, cat2)) or _CATEGORY_SIMILARITY.get((cat2, cat1)) or 0.0
+def encode_text(text: str) -> np.ndarray:
+    """텍스트를 임베딩 벡터로 인코딩합니다."""
+    return _get_model().encode([text], convert_to_numpy=True)[0]
+
+
+def text_similarity(text1: str, text2: str, vec1: Optional[np.ndarray] = None) -> float:
+    """두 텍스트 간 코사인 유사도를 반환합니다 (0~1).
+
+    vec1이 주어지면 text1 인코딩을 생략하고 재사용합니다.
+    """
+    model = _get_model()
+    if vec1 is None:
+        embeddings = model.encode([text1, text2], convert_to_numpy=True)
+        v1, v2 = embeddings[0], embeddings[1]
+    else:
+        v1 = vec1
+        v2 = model.encode([text2], convert_to_numpy=True)[0]
+    norm = np.linalg.norm(v1) * np.linalg.norm(v2)
+    if norm == 0.0:
+        return 0.0
+    cos_sim = float(np.dot(v1, v2) / norm)
+    return max(0.0, min(1.0, cos_sim))

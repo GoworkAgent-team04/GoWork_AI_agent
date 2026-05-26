@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from backend.repositories import job_repository
 from backend.schemas.job import JobCard, JobRequestDTO
 from backend.scoring import calc_max_score, calc_raw_score, normalize
-from backend.scoring.weights import load_weights
+from backend.scoring.category import encode_text
 
 TOP_N = 3
 
@@ -14,7 +14,7 @@ def _to_job_card(job: Dict[str, Any]) -> JobCard:
     location = " ".join(p for p in location_parts if p) or job.get("location_raw")
 
     deadline: Optional[str] = None
-    if job.get("deadline_type") == "ALWAYS":
+    if (job.get("deadline_type") or "").upper() == "OPEN":
         deadline = "상시모집"
     elif job.get("deadline_at"):
         deadline = str(job["deadline_at"])[:10]
@@ -25,7 +25,7 @@ def _to_job_card(job: Dict[str, Any]) -> JobCard:
         company=job.get("company_raw"),
         location=location,
         salary=job.get("salary_raw"),
-        work_type=job.get("work_type_raw") or job.get("work_type_norm"),
+        work_type=job.get("work_type_norm") or job.get("work_type_raw"),
         schedule=job.get("schedule_raw"),
         deadline=deadline,
         source_url=job.get("source_url"),
@@ -59,11 +59,11 @@ def get_recommendations(params: JobRequestDTO) -> List[JobCard]:
     if not raw_jobs:
         return []
 
-    w = load_weights()
-    max_score = calc_max_score(params, w)
+    max_score = calc_max_score()
+    job_type_vec = encode_text(params.job_type) if params.job_type else None
     ranked = sorted(
         raw_jobs,
-        key=lambda j: normalize(calc_raw_score(j, params, w), max_score),
+        key=lambda j: normalize(calc_raw_score(j, params, job_type_vec=job_type_vec), max_score),
         reverse=True,
     )
     return [_to_job_card(job) for job in ranked[:TOP_N]]
