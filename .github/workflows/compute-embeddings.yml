@@ -16,5 +16,4 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           command_timeout: 30m
           script: |
-            CLEAN_DB_URL=$(docker exec gowork-app printenv DATABASE_URL | tr -d '[:space:]')
-            docker exec -e DATABASE_URL="$CLEAN_DB_URL" gowork-app python scripts/compute_embeddings.py
+            docker exec gowork-app python scripts/compute_embeddings.py
