@@ -11,61 +11,40 @@ JOB_RECOMMEND 관련 노드 모음
                                         └─ 최대 재시도 → job_response_gen_node → END
 """
 
-import asyncio
+import logging
 
+import httpx
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
 from agent.llm import fast_llm, main_llm
+from agent.nodes.setup import _clean_region
 from agent.parsers import RobustPydanticParser
 from agent.state import AgentState
-from backend.database.queries import _map_job_category, search_jobs
+from backend.config import config
 from backend.models.schemas import JobSearchParams
 
-# ─── 유사 직종 매핑 (파라미터 완화 시 인접 직종으로 검색 확대) ────────────
-RELATED_CATEGORIES: dict = {
-    "SECURITY": ["CLEANING", "DRIVING"],
-    "CLEANING": ["SECURITY", "ENVIRONMENT"],
-    "CARE": ["KITCHEN", "COUNSELING"],
-    "KITCHEN": ["CARE", "SALES"],
-    "DRIVING": ["DELIVERY", "SECURITY"],
-    "DELIVERY": ["DRIVING", "SALES"],
-    "SALES": ["KITCHEN", "OFFICE"],
-    "OFFICE": ["SALES", "COUNSELING"],
-    "PRODUCTION": ["ENVIRONMENT", "DELIVERY"],
-    "ENVIRONMENT": ["CLEANING", "PRODUCTION"],
-    "COUNSELING": ["CARE", "OFFICE"],
-}
+logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. Profile Checker Node
 # ─────────────────────────────────────────────────────────────────────────────
 
-# 거리 선호 표현 (지역명이 아님)
-_VAGUE_LOCATION_SUFFIXES = ("쪽", "이요", "요", "에서", "근처", "동네")
-_VAGUE_LOCATIONS = {"집", "집근처", "근처", "동네", "우리동네", "가까운곳", "멀지않은곳"}
-
 
 def _check_region_sufficient(collected_info: dict, db_profile: dict) -> tuple[bool, list]:
     """
-    region 충족 여부를 코드로 판단 (LLM 불필요).
-    - collected_info 또는 db_profile에 지역이 있으면 True
-    - 없거나 막연한 표현이면 False
+    region + job_type 충족 여부를 코드로 판단 (LLM 불필요).
+    - region: collected_info 또는 db_profile에 지역이 있고 막연한 표현이 아니면 OK
+    - job_type: collected_info에 직종이 있으면 OK
+    둘 다 있어야 True
     """
-    region = (
-        (collected_info or {}).get("region")
-        or (db_profile or {}).get("region_district")
-        or (db_profile or {}).get("region_city")
-    )
-    if not region:
-        return False, ["region"]
+    missing = []
 
-    # 막연한 표현 필터
-    normalized = str(region).replace(" ", "")
-    if normalized in _VAGUE_LOCATIONS:
-        return False, ["region"]
+    region = (collected_info or {}).get("region")
+    if not region or not _clean_region(str(region)):
+        missing.append("region")
 
-    return True, []
+    return (len(missing) == 0), missing
 
 
 async def profile_checker_node(state: AgentState) -> dict:
@@ -89,10 +68,14 @@ async def profile_checker_node(state: AgentState) -> dict:
         }
 
     # ── 정보 충분 → 검색 파라미터 추출 (LLM 1회) ─────────────────
+    # address는 거주지 주소이므로 region으로 오해하지 않도록 제외
+    # careers/certifications/skills만 직종 추론 컨텍스트로 전달
+    db = state["db_profile"] or {}
+    profile_context = {k: v for k, v in db.items() if k not in ("address", "id") and v}
     try:
         params = await _param_extractor_chain.ainvoke(
             {
-                "db_profile": str(state["db_profile"]),
+                "db_profile": str(profile_context),
                 "collected_info": collected,
                 "history": state["history_text"],
                 "format_instructions": _param_extractor_parser.get_format_instructions(),
@@ -101,7 +84,7 @@ async def profile_checker_node(state: AgentState) -> dict:
         search_params = params.model_dump(exclude_none=True)
     except Exception as e:
         print(f"[ProfileChecker] param 추출 오류, 기본 region만 사용: {e}")
-        region = collected.get("region") or (state["db_profile"] or {}).get("region_district")
+        region = collected.get("region")
         search_params = {"region": region} if region else {}
 
     return {
@@ -127,11 +110,15 @@ _question_gen_chain = (
 - 반드시 한 번에 하나의 질문만 하세요
 - 쉽고 간단한 표현을 사용하세요
 - 딱딱하지 않고 대화하듯 물어보세요
+- 사용자 프로필(경력·나이 등)을 참고해 자연스럽게 연결하세요
 - 반드시 한국어로 답변하세요""",
             ),
             (
                 "human",
-                """[부족한 정보 항목]
+                """[사용자 프로필]
+{user_profile}
+
+[부족한 정보 항목]
 {missing_fields}
 
 [대화 기록]
@@ -146,9 +133,35 @@ _question_gen_chain = (
 )
 
 
+def _build_user_profile_summary(db_profile: dict) -> str:
+    """db_profile에서 대화 컨텍스트에 유용한 정보만 추려 텍스트로 변환"""
+    if not db_profile:
+        return "프로필 정보 없음"
+    parts = []
+    if db_profile.get("name"):
+        parts.append(f"이름: {db_profile['name']}")
+    if db_profile.get("age"):
+        parts.append(f"나이: {db_profile['age']}세")
+    careers = db_profile.get("careers") or []
+    if careers:
+        career_strs = [
+            f"{c.get('job_title', '')}({c.get('company_name', '')})" for c in careers[:3]
+        ]
+        parts.append(f"경력: {', '.join(career_strs)}")
+    certs = db_profile.get("certifications") or []
+    if certs:
+        parts.append(f"자격증: {', '.join(str(c) for c in certs[:3])}")
+    skills = (db_profile.get("other_skills") or []) + (db_profile.get("document_skills") or [])
+    if skills:
+        parts.append(f"보유스킬: {', '.join(str(s) for s in skills[:3])}")
+    return "\n".join(parts) if parts else "프로필 정보 없음"
+
+
 async def question_gen_node(state: AgentState) -> dict:
+    user_profile = _build_user_profile_summary(state.get("db_profile") or {})
     question = await _question_gen_chain.ainvoke(
         {
+            "user_profile": user_profile,
             "missing_fields": state["missing_fields"],
             "history": state["history_text"],
         }
@@ -168,8 +181,17 @@ _param_extractor_chain = (
             (
                 "system",
                 """대화 내용에서 일자리 검색 파라미터를 추출합니다.
-DB 프로필과 대화에서 수집된 정보를 모두 활용하세요.
-확신할 수 없는 값은 null로 설정하세요.
+
+규칙:
+- region: 반드시 [대화에서 수집된 정보]의 region 값만 사용하세요.
+  DB 프로필의 address(거주지 주소)는 절대 region으로 사용하지 마세요.
+  사용자가 명시적으로 언급한 지역이 없으면 null로 설정하세요.
+- job_type: 반드시 문자열 하나만 반환하세요. 경력이 여러 개면 가장 최근 것 하나만 선택하세요.
+- work_type: 반드시 "full_time" / "part_time" / "any" 중 하나만 사용하세요.
+  한글(시간제/전일제) → 각각 "part_time" / "full_time"으로 변환하세요.
+- 나머지 파라미터(physical_limit, salary_min)는
+  DB 프로필과 대화에서 수집된 정보를 모두 활용하세요.
+- 확신할 수 없는 값은 null로 설정하세요.
 
 {format_instructions}""",
             ),
@@ -197,10 +219,32 @@ DB 프로필과 대화에서 수집된 정보를 모두 활용하세요.
 
 
 async def job_searcher_node(state: AgentState) -> dict:
+    """GET /recommend API를 호출해 스코어링된 공고 top3를 조회합니다."""
     params = state.get("search_params") or {}
     retry_count = state.get("retry_count", 0)
-    jobs = await asyncio.to_thread(search_jobs, params)
-    print(f"[JobSearch] retry={retry_count}, params={params}, found={len(jobs)}건")
+    user_id = state["user_id"]
+
+    # job_category_list는 /recommend API 미지원 → 제외
+    api_params = {k: v for k, v in params.items() if v is not None and k != "job_category_list"}
+    api_params["user_id"] = user_id
+
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(
+                f"{config.API_BASE_URL}/recommend",
+                params=api_params,
+                timeout=10.0,
+            )
+            if resp.status_code == 200:
+                jobs = resp.json().get("jobs", [])
+            else:
+                logger.warning("/recommend API 오류: status=%s", resp.status_code)
+                jobs = []
+    except Exception as e:
+        logger.exception("/recommend API 호출 실패: %s", e)
+        jobs = []
+
+    print(f"[JobSearch] retry={retry_count}, params={api_params}, found={len(jobs)}건")
     return {"jobs": jobs}
 
 
@@ -240,17 +284,9 @@ async def param_relaxer_node(state: AgentState) -> dict:
         print(f"[ParamRelax] 1차 완화 → {params}")
 
     elif retry_count == 1:
-        # ── 2차 완화: physical_limit 제거 + 유사 직종 확장 ────────
+        # ── 2차 완화: physical_limit 제거 ─────────────────────────
+        # job_type은 /recommend scoring 엔진의 임베딩 유사도가 유사 직종을 자동 처리
         params.pop("physical_limit", None)
-
-        job_type = params.get("job_type")
-        if job_type:
-            category = _map_job_category(job_type)
-            if category and category in RELATED_CATEGORIES:
-                related = RELATED_CATEGORIES[category]
-                params["job_category_list"] = [category] + related
-                params.pop("job_type", None)
-                print(f"[ParamRelax] 2차 완화: {category} → {params['job_category_list']}")
         print(f"[ParamRelax] 2차 완화 → {params}")
 
     return {
@@ -329,13 +365,17 @@ _intro_chain = (
 - 회사명·급여·위치 등 공고의 구체적인 내용은 절대 언급하지 마세요
 - 검색 건수와 검색 조건(지역·직종)만 자연스럽게 언급하세요
 - 검색 범위를 넓혀서 찾은 경우(retry_count > 0) 이 사실을 언급하세요
+- 사용자 프로필(경력 등)을 참고해 공감하는 말투로 작성하세요
 - 1~2문장으로 짧게, 이해하기 쉬운 말투로 작성하세요
 - 마지막에 관심 있는 공고가 있는지 자연스럽게 물어보세요
 - 반드시 한국어로 답변하세요""",
             ),
             (
                 "human",
-                """[검색 건수]
+                """[사용자 프로필]
+{user_profile}
+
+[검색 건수]
 {job_count}건
 
 [사용자 조건]
@@ -368,13 +408,14 @@ async def job_response_gen_node(state: AgentState) -> dict:
             "jobs": [],
         }
 
-    # ── 공고 카드: DB row를 알고리즘으로 직접 포맷팅 (LLM 없음) ──────
-    job_cards = [_format_job_card(row) for row in jobs]
+    # /recommend API가 이미 JobCard 형태로 반환 → 별도 포맷팅 불필요
+    job_cards = jobs
 
     # ── 도입 텍스트: LLM은 건수와 조건만 보고 한두 문장 생성 ───────────
     collected = state["collected_info"]
     intro = await _intro_chain.ainvoke(
         {
+            "user_profile": _build_user_profile_summary(state.get("db_profile") or {}),
             "job_count": len(jobs),
             "user_conditions": collected.model_dump()
             if hasattr(collected, "model_dump")

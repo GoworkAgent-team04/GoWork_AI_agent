@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.routers import chat, feedback, recommend, user
+from backend.scoring.category import _get_model
 
 _FLUTTER_WEB_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend", "build", "web")
 
@@ -37,6 +38,14 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+
+# ─── 서버 시작 시 모델 워밍업 (cold start 방지) ──────────────────
+@app.on_event("startup")
+async def warmup():
+    import asyncio
+
+    await asyncio.to_thread(_get_model)
 
 
 # ─── 응답 시간 미들웨어 ───────────────────────────────────────────

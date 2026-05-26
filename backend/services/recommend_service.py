@@ -14,7 +14,7 @@ def _to_job_card(job: Dict[str, Any]) -> JobCard:
     location = " ".join(p for p in location_parts if p) or job.get("location_raw")
 
     deadline: Optional[str] = None
-    if job.get("deadline_type") == "ALWAYS":
+    if (job.get("deadline_type") or "").upper() == "OPEN":
         deadline = "상시모집"
     elif job.get("deadline_at"):
         deadline = str(job["deadline_at"])[:10]
@@ -25,7 +25,7 @@ def _to_job_card(job: Dict[str, Any]) -> JobCard:
         company=job.get("company_raw"),
         location=location,
         salary=job.get("salary_raw"),
-        work_type=job.get("work_type_raw") or job.get("work_type_norm"),
+        work_type=job.get("work_type_norm") or job.get("work_type_raw"),
         schedule=job.get("schedule_raw"),
         deadline=deadline,
         source_url=job.get("source_url"),
