@@ -3,7 +3,6 @@ from typing import Any, Dict, List, Optional
 
 from sqlalchemy import or_
 
-from backend.config import config
 from backend.database.connection import get_db
 from backend.models.orm import JobContact, JobPosting
 
@@ -57,7 +56,7 @@ def search_jobs(params: Dict[str, Any]) -> List[Dict[str, Any]]:
                 )
             )
 
-        postings = q.order_by(JobPosting.collected_at.desc()).limit(config.JOB_CANDIDATE_POOL).all()
+        postings = q.order_by(JobPosting.collected_at.desc()).all()
         return [_posting_to_dict(p) for p in postings]
 
 
@@ -114,4 +113,5 @@ def _posting_to_dict(p: JobPosting) -> Dict[str, Any]:
         "source_url": p.source_url,
         "deadline_at": p.deadline_at,
         "deadline_type": p.deadline_type,
+        "embedding": p.embedding,
     }
