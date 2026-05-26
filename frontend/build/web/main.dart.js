@@ -80848,7 +80848,7 @@ A.Xs.prototype={
 ut(a,b){return this.Wx(a,b)},
 Wx(a,b){var s=0,r=A.Q(t.Oo),q,p,o,n,m
 var $async$ut=A.R(function(c,d){if(c===1)return A.N(d,r)
-for(;;)switch(s){case 0:p=A.fh("http://localhost:8000/chat",0,null)
+for(;;)switch(s){case 0:p=A.fh("http://43.200.172.143:8000/chat",0,null)
 o=t.N
 n=A.aj(["Content-Type","application/json"],o,o)
 s=3
