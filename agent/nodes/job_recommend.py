@@ -12,6 +12,7 @@ JOB_RECOMMEND 관련 노드 모음
 """
 
 import logging
+import time
 
 import httpx
 from langchain_core.output_parsers import StrOutputParser
@@ -73,6 +74,7 @@ async def profile_checker_node(state: AgentState) -> dict:
     db = state["db_profile"] or {}
     profile_context = {k: v for k, v in db.items() if k not in ("address", "id") and v}
     try:
+        t0 = time.perf_counter()
         params = await _param_extractor_chain.ainvoke(
             {
                 "db_profile": str(profile_context),
@@ -81,6 +83,7 @@ async def profile_checker_node(state: AgentState) -> dict:
                 "format_instructions": _param_extractor_parser.get_format_instructions(),
             }
         )
+        print(f"[ProfileChecker] param 추출 fast_llm ⏱ {time.perf_counter() - t0:.2f}s")
         search_params = params.model_dump(exclude_none=True)
     except Exception as e:
         print(f"[ProfileChecker] param 추출 오류, 기본 region만 사용: {e}")
@@ -159,6 +162,7 @@ def _build_user_profile_summary(db_profile: dict) -> str:
 
 async def question_gen_node(state: AgentState) -> dict:
     user_profile = _build_user_profile_summary(state.get("db_profile") or {})
+    t0 = time.perf_counter()
     question = await _question_gen_chain.ainvoke(
         {
             "user_profile": user_profile,
@@ -166,6 +170,7 @@ async def question_gen_node(state: AgentState) -> dict:
             "history": state["history_text"],
         }
     )
+    print(f"[QuestionGen] fast_llm ⏱ {time.perf_counter() - t0:.2f}s")
     return {"response": question}
 
 
@@ -229,6 +234,7 @@ async def job_searcher_node(state: AgentState) -> dict:
     api_params["user_id"] = user_id
 
     try:
+        t0 = time.perf_counter()
         async with httpx.AsyncClient() as client:
             resp = await client.get(
                 f"{config.API_BASE_URL}/recommend",
@@ -240,11 +246,12 @@ async def job_searcher_node(state: AgentState) -> dict:
             else:
                 logger.warning("/recommend API 오류: status=%s", resp.status_code)
                 jobs = []
+        print(
+            f"[JobSearch] /recommend API ⏱ {time.perf_counter() - t0:.2f}s  retry={retry_count}  found={len(jobs)}건"
+        )
     except Exception as e:
         logger.exception("/recommend API 호출 실패: %s", e)
         jobs = []
-
-    print(f"[JobSearch] retry={retry_count}, params={api_params}, found={len(jobs)}건")
     return {"jobs": jobs}
 
 
@@ -413,6 +420,7 @@ async def job_response_gen_node(state: AgentState) -> dict:
 
     # ── 도입 텍스트: LLM은 건수와 조건만 보고 한두 문장 생성 ───────────
     collected = state["collected_info"]
+    t0 = time.perf_counter()
     intro = await _intro_chain.ainvoke(
         {
             "user_profile": _build_user_profile_summary(state.get("db_profile") or {}),
@@ -424,6 +432,7 @@ async def job_response_gen_node(state: AgentState) -> dict:
             "history": state["history_text"],
         }
     )
+    print(f"[JobResponseGen] main_llm ⏱ {time.perf_counter() - t0:.2f}s")
 
     return {
         "response": intro,  # 대화 텍스트 (메모리 저장용)
