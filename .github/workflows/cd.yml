@@ -41,21 +41,30 @@ jobs:
       # ── EC2 SSH 접속 → 배포 ─────────────────────────────────────────
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: ECR_REGISTRY,ECR_REPOSITORY,IMAGE_TAG,AWS_REGION
+          envs: ECR_REGISTRY,ECR_REPOSITORY,AWS_REGION,DATABASE_URL,GROQ_API_KEY,API_BASE_URL
           script: |
+            IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+
             # 디스크 정리 (사용하지 않는 이미지/컨테이너 제거)
             docker system prune -af --volumes || true
 
             # ECR 로그인
-            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | \
-              docker login --username AWS --password-stdin ${{ steps.login-ecr.outputs.registry }}
+            aws ecr get-login-password --region "$AWS_REGION" | \
+              docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
             # 최신 이미지 pull
-            docker pull ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:latest
+            docker pull "$IMAGE"
 
             # 기존 컨테이너 중지 & 제거
             docker stop gowork-app || true
@@ -66,15 +75,15 @@ jobs:
               --name gowork-app \
               --restart unless-stopped \
               -p 8000:8000 \
-              -e DATABASE_URL=${{ secrets.DATABASE_URL }} \
-              -e GROQ_API_KEY=${{ secrets.GROQ_API_KEY }} \
-              -e API_BASE_URL=${{ secrets.API_BASE_URL }} \
+              -e DATABASE_URL="$DATABASE_URL" \
+              -e GROQ_API_KEY="$GROQ_API_KEY" \
+              -e API_BASE_URL="$API_BASE_URL" \
               -e PYTHONUNBUFFERED=1 \
               --log-driver awslogs \
-              --log-opt awslogs-region=${{ secrets.AWS_REGION }} \
+              --log-opt awslogs-region="$AWS_REGION" \
               --log-opt awslogs-group=/gowork/app \
               --log-opt awslogs-create-group=true \
-              ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY }}:latest
+              "$IMAGE"
 
             # 헬스체크
             sleep 10
