@@ -14,4 +14,3 @@ docs/
 *.md
 .env
 .env.*
-poetry.lock
