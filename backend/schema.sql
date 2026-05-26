@@ -133,6 +133,44 @@ CREATE INDEX IF NOT EXISTS idx_document_skills_user_id ON document_skills (user_
 CREATE INDEX IF NOT EXISTS idx_other_skills_user_id    ON other_skills (user_id);
 
 
+-- ─── 3. job_posting 목업 데이터 ────────────────────────────────────
+
+INSERT INTO job_posting (
+    id, platform_id, title_raw, source_url,
+    location_city, location_district, location_raw,
+    work_type_raw, work_type_norm, salary_min,
+    physical_level, senior_tag, job_category_norm,
+    deadline_at, deadline_type, status_norm, collected_at
+) VALUES
+(
+    '11111111-1111-1111-1111-111111111111',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    '아파트 경비원 모집', 'https://example.com/job/1',
+    '서울', '노원구', '서울 노원구',
+    '시간제', 'PART_TIME', 1800000,
+    'LOW', 'SENIOR_PREFERRED', '경비/보안',
+    CURRENT_DATE + INTERVAL '30 days', 'DATE', 'ACTIVE', now()
+),
+(
+    '22222222-2222-2222-2222-222222222222',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    '편의점 아르바이트', 'https://example.com/job/2',
+    '부산', '사하구', '부산 사하구',
+    '시간제', 'PART_TIME', 1500000,
+    'LOW', 'SENIOR_FRIENDLY', '판매/영업',
+    CURRENT_DATE + INTERVAL '20 days', 'DATE', 'ACTIVE', now()
+),
+(
+    '33333333-3333-3333-3333-333333333333',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    '청소원 채용', 'https://example.com/job/3',
+    '서울', '성북구', '서울 성북구',
+    '상시', 'FULL_TIME', 2000000,
+    'MID', 'SENIOR_PREFERRED', '청소/환경',
+    NULL, 'OPEN', 'ACTIVE', now()
+)
+ON CONFLICT DO NOTHING;
+
 -- ─── 3. 목업 데이터 ─────────────────────────────────────────────
 -- 경력/자격증/보유능력 없는 사용자 10명 (id: 1~10)
 -- 경력/자격증/보유능력 있는 사용자 10명 (id: 11~20)
