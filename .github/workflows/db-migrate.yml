@@ -26,5 +26,18 @@ jobs:
           script: |
             DATABASE_URL=$(echo "$DATABASE_URL" | tr -d '\n\r')
             echo "▶ Running migration..."
-            echo "$SQL" | psql "$DATABASE_URL"
+            docker exec \
+              -e DATABASE_URL="$DATABASE_URL" \
+              -e MIGRATION_SQL="$SQL" \
+              gowork-app \
+              python3 -c "
+import os, psycopg2
+conn = psycopg2.connect(os.environ['DATABASE_URL'])
+conn.autocommit = True
+cur = conn.cursor()
+cur.execute(os.environ['MIGRATION_SQL'])
+cur.close()
+conn.close()
+print('Migration complete')
+"
             echo "✓ Done"
