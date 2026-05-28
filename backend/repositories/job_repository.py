@@ -1,4 +1,3 @@
-from datetime import date
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import or_
@@ -30,13 +29,13 @@ def search_jobs(params: Dict[str, Any]) -> List[Dict[str, Any]]:
         q = db.query(JobPosting)
 
         # 만료 공고 제외
-        today = date.today()
-        q = q.filter(
-            or_(
-                JobPosting.deadline_at.is_(None),
-                JobPosting.deadline_at >= today,
-            )
-        )
+        # today = date.today()
+        # q = q.filter(
+        #     or_(
+        #         JobPosting.deadline_at.is_(None),
+        #         JobPosting.deadline_at >= today,
+        #     )
+        # )
 
         if params.get("region"):
             region = f"%{params['region']}%"

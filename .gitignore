@@ -34,3 +34,5 @@ logs/
 # DB (로컬 SQLite 등)
 *.db
 *.sqlite3
+
+BACKEND_CODE_GUIDE.md
