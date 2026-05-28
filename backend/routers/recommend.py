@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Query
@@ -36,5 +37,5 @@ async def recommend(
         work_type=work_type,
         salary_min=salary_min,
     )
-    jobs = recommend_service.get_recommendations(req)
+    jobs = await asyncio.to_thread(recommend_service.get_recommendations, req)
     return JobResponseDTO(user_id=user_id, jobs=jobs)
