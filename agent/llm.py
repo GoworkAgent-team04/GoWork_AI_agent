@@ -16,7 +16,7 @@ main_llm = ChatGroq(
 
 # 의도 분류 / 파라미터 추출 / 판단 작업용 (빠름)
 fast_llm = ChatGroq(
-    model=config.MAIN_MODEL,
+    model=config.FAST_MODEL,
     api_key=config.GROQ_API_KEY,
     temperature=config.FAST_TEMPERATURE,
     callbacks=_callbacks_fast,

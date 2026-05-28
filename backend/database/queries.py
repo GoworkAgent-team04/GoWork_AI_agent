@@ -184,6 +184,9 @@ def search_jobs(params: Dict[str, Any]) -> List[Dict]:
 
         # 근무 형태 / 급여 필터는 해당 컬럼이 NULL이므로 현재 스킵
 
+        # 마감 필터: 마감일이 없거나 오늘 이후인 공고만 반환
+        # query += " AND (jp.deadline_at IS NULL OR jp.deadline_at >= CURRENT_DATE)"
+
         query += f" ORDER BY jp.collected_at DESC LIMIT {config.MAX_JOB_RESULTS}"
 
         result = db.execute(text(query), query_params)
