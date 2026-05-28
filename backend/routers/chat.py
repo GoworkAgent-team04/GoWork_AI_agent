@@ -21,7 +21,7 @@ async def chat(req: ChatRequestDTO):
     - 일자리 추천: `text` (말풍선) + `jobs` (공고 카드 top3) 반환
     """
     try:
-        result = await process_message(str(req.user_id), req.message)
+        result = await process_message(str(req.user_id), req.message, req.action)
         return ChatResponseDTO(
             user_id=req.user_id,
             text=result["text"],

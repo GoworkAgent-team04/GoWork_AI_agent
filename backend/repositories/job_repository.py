@@ -56,6 +56,11 @@ def search_jobs(params: Dict[str, Any]) -> List[Dict[str, Any]]:
                 )
             )
 
+        # 이미 추천된 공고 제외 (refresh_jobs 액션)
+        exclude_ids = params.get("exclude_ids") or []
+        if exclude_ids:
+            q = q.filter(JobPosting.id.notin_(exclude_ids))
+
         postings = q.order_by(JobPosting.collected_at.desc()).all()
         return [_posting_to_dict(p) for p in postings]
 

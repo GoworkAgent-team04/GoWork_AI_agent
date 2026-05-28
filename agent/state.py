@@ -14,6 +14,7 @@ class AgentState(TypedDict):
     # ─── 입력 ─────────────────────────────────────────────────────
     user_id: str
     user_message: str
+    action: Optional[str]  # 버튼 액션 (refresh_jobs: 다른 공고 추천)
 
     # ─── 메모리 컨텍스트 (setup_node에서 로드) ──────────────────────
     history_text: str
@@ -37,6 +38,7 @@ class AgentState(TypedDict):
     search_params: Optional[dict]  # 추출된 검색 파라미터
     retry_count: int  # DB 재검색 횟수
     jobs: List[dict]  # 검색된 공고 목록
+    exclude_job_ids: List[str]  # 이미 추천된 공고 ID (refresh_jobs 시 제외 대상)
 
     # ─── 최종 출력 ────────────────────────────────────────────────
     response: Optional[str]

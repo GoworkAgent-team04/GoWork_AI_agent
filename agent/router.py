@@ -74,7 +74,7 @@ _B = "\033[1m"  # 굵게
 _cycle_count = 0  # 전체 대화 사이클 카운터
 
 
-async def process_message(user_id: str, user_message: str) -> Dict[str, Any]:
+async def process_message(user_id: str, user_message: str, action: str | None = None) -> Dict[str, Any]:
     """
     사용자 메시지를 처리하고 최종 응답을 반환합니다.
 
@@ -99,11 +99,12 @@ async def process_message(user_id: str, user_message: str) -> Dict[str, Any]:
     print(f"{_M}{'━' * 64}{_R}\n")
 
     try:
-        # LangGraph 실행: 초기 state에 user_id와 user_message만 주입
+        # LangGraph 실행: 초기 state에 user_id, user_message, action 주입
         final_state = await graph.ainvoke(
             {
                 "user_id": user_id,
                 "user_message": user_message,
+                "action": action,
             }
         )
 

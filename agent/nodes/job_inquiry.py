@@ -27,7 +27,7 @@ _context_resolver_chain = (
                 """대화 기록과 최근 추천 공고 목록을 보고
 사용자가 문의하려는 공고의 job_id를 파악하세요.
 
-- "이 일", "1번 일자리", "경비 일" 등 간접 표현도 추론하세요
+- "이 일", "첫번째꺼", "경비 일", "아까 보여줬던" 등 간접 표현도 추론하세요
 - 특정할 수 없으면 job_id를 null로 반환하세요
 
 {format_instructions}""",
@@ -93,7 +93,7 @@ async def job_inquiry_node(state: AgentState) -> dict:
     if not job_id_result.job_id:
         return {
             "response": (
-                "어떤 일자리에 대해 궁금하신가요? 😊\n"
+                "말씀하신 공고를 찾지 못했어요.\n"
                 "공고 번호나 이름을 말씀해 주시면 자세히 안내해 드릴게요!"
             )
         }

@@ -16,6 +16,9 @@ async def recommend(
     physical_limit: Optional[bool] = None,
     work_type: Optional[str] = None,
     salary_min: Optional[int] = Query(None, ge=0),
+    exclude_ids: Optional[str] = Query(
+        None, description="제외할 공고 ID 목록 (쉼표 구분, 예: uuid1,uuid2)"
+    ),
 ):
     """
     LLM이 추출한 유저 선호도 파라미터 기반으로 공고를 추천합니다.
@@ -28,6 +31,9 @@ async def recommend(
        - senior_tag: 항상 평가
     3. score / max_score(1.20) 정규화 후 rank score 기준 top3 반환
     """
+    # 쉼표 구분 문자열 → 리스트 변환 (공백 제거 후 빈 값 필터링)
+    exclude_id_list = [i.strip() for i in exclude_ids.split(",") if i.strip()] if exclude_ids else []
+
     req = JobRequestDTO(
         user_id=user_id,
         region=region,
@@ -35,6 +41,7 @@ async def recommend(
         physical_limit=physical_limit,
         work_type=work_type,
         salary_min=salary_min,
+        exclude_ids=exclude_id_list,
     )
     jobs = recommend_service.get_recommendations(req)
     return JobResponseDTO(user_id=user_id, jobs=jobs)

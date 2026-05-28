@@ -233,6 +233,11 @@ async def job_searcher_node(state: AgentState) -> dict:
     api_params = {k: v for k, v in params.items() if v is not None and k != "job_category_list"}
     api_params["user_id"] = user_id
 
+    # 이미 추천된 공고 제외 (refresh_jobs 액션)
+    exclude_job_ids = state.get("exclude_job_ids", [])
+    if exclude_job_ids:
+        api_params["exclude_ids"] = ",".join(exclude_job_ids)
+
     try:
         t0 = time.perf_counter()
         async with httpx.AsyncClient() as client:

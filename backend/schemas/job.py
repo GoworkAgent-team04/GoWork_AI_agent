@@ -12,6 +12,9 @@ class JobRequestDTO(BaseModel):
     physical_limit: Optional[bool] = Field(None, description="신체 제약 여부")
     work_type: Optional[str] = Field(None, description="근무 형태 (part_time | full_time | any)")
     salary_min: Optional[int] = Field(None, ge=0, description="최소 희망 급여 (원, 예: 1500000)")
+    exclude_ids: List[str] = Field(
+        default_factory=list, description="제외할 공고 ID 목록 (이미 추천된 공고)"
+    )
 
 
 class JobCard(BaseModel):

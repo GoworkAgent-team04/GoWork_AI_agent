@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -8,6 +8,9 @@ from backend.schemas.job import JobCard
 class ChatRequestDTO(BaseModel):
     user_id: int = Field(..., gt=0, description="유저 ID")
     message: str = Field(..., min_length=1, max_length=1000, description="사용자 메시지")
+    action: Optional[str] = Field(
+        None, description="버튼 액션 (refresh_jobs: 다른 공고 추천)"
+    )
 
 
 class ChatResponseDTO(BaseModel):

@@ -182,6 +182,17 @@ async def setup_node(state: AgentState) -> dict:
 
     print(f"[Intent] {intent} (confidence: {intent_result.confidence:.2f})")
 
+    # ── refresh_jobs 액션: 이전에 추천된 공고 ID를 제외 목록으로 세팅 ──
+    action = state.get("action")
+    if action == "refresh_jobs" and last_jobs:
+        exclude_job_ids = [str(j["id"]) for j in last_jobs if j.get("id")]
+        print(f"[Setup] refresh_jobs → 제외 공고 {len(exclude_job_ids)}건: {exclude_job_ids}")
+        # refresh_jobs는 무조건 JOB_RECOMMEND로 라우팅
+        intent = IntentType.JOB_RECOMMEND
+        after_profile_intent = None
+    else:
+        exclude_job_ids = []
+
     return {
         "history_text": history_text,
         "history_messages": history_messages,
@@ -193,6 +204,7 @@ async def setup_node(state: AgentState) -> dict:
         "after_profile_intent": after_profile_intent,
         "retry_count": 0,
         "jobs": [],
+        "exclude_job_ids": exclude_job_ids,
         "is_info_sufficient": None,
         "missing_fields": [],
         "search_params": None,

@@ -82,6 +82,7 @@ def get_recommendations(params: JobRequestDTO) -> List[JobCard]:
             "physical_limit": params.physical_limit,
             "work_type": params.work_type,
             "salary_min": params.salary_min,
+            "exclude_ids": params.exclude_ids,
         }
     )
 
