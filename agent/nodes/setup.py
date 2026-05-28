@@ -154,15 +154,15 @@ async def setup_node(state: AgentState) -> dict:
     history_text = memory.get_history_as_text(user_id)
     history_messages = memory.get_history(user_id)
 
-    # ── 3개 작업 동시 실행 ────────────────────────────────────────
-    # ① 프로필 추출  ② 의도 분류  ③ GET /users/{user_id} API 호출
+    # ── LLM 호출은 sequential (70b 동시 호출 시 rate limit 방지) ──
+    # ① 프로필 추출 + DB 조회 동시  ② 의도 분류 (LLM 단독)
     t0 = time.perf_counter()
-    new_info, intent_result, db_profile = await asyncio.gather(
+    new_info, db_profile = await asyncio.gather(
         _extract_profile(user_message),
-        classify_intent(user_message, history_text),
         _fetch_user_profile(user_id),
     )
-    print(f"[Setup] gather(추출+의도+프로필) ⏱ {time.perf_counter() - t0:.2f}s")
+    intent_result = await classify_intent(user_message, history_text)
+    print(f"[Setup] 추출+프로필+의도 ⏱ {time.perf_counter() - t0:.2f}s")
     db_profile = db_profile or {}
 
     # 추출된 조건 정보 누적 업데이트

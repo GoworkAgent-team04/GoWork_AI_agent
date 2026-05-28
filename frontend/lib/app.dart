@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'constants/app_colors.dart';
@@ -18,7 +19,7 @@ class SeniorJobApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
         ),
-        fontFamily: 'Roboto',
+        textTheme: GoogleFonts.notoSansKrTextTheme(),
         useMaterial3: true,
       ),
       home: const _StartupGate(),

@@ -118,8 +118,11 @@ async def process_message(user_id: str, user_message: str) -> Dict[str, Any]:
         # 대화 텍스트만 메모리에 저장 (카드 데이터는 저장 불필요)
         memory.add_ai_message(user_id, text)
 
-        # JOB_RECOMMEND가 아니면 jobs는 항상 빈 배열
-        if intent != IntentType.JOB_RECOMMEND:
+        # JOB_RECOMMEND 또는 PROFILE_RECOMMEND(after_profile_intent=JOB_RECOMMEND)가 아니면 jobs는 빈 배열
+        if (
+            intent != IntentType.JOB_RECOMMEND
+            and final_state.get("after_profile_intent") != IntentType.JOB_RECOMMEND
+        ):
             jobs = []
 
     except Exception as e:
