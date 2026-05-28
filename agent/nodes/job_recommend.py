@@ -34,14 +34,18 @@ logger = logging.getLogger(__name__)
 
 def _check_region_sufficient(collected_info: dict, db_profile: dict) -> tuple[bool, list]:
     """
-    region + job_type 충족 여부를 코드로 판단 (LLM 불필요).
-    - region: collected_info 또는 db_profile에 지역이 있고 막연한 표현이 아니면 OK
-    - job_type: collected_info에 직종이 있으면 OK
-    둘 다 있어야 True
+    region 충족 여부를 코드로 판단 (LLM 불필요).
+    - region: collected_info 우선, 없으면 db_profile의 region_city/region_district/address 활용
+    - job_type: 있으면 검색에 활용, 없어도 region만으로 넓게 검색 (필수 아님)
     """
     missing = []
+    collected = collected_info or {}
+    db = db_profile or {}
 
-    region = (collected_info or {}).get("region")
+    # ── region 확인 (필수) ───────────────────────────────────────
+    region = collected.get("region")
+    if not region or not _clean_region(str(region)):
+        region = db.get("region_district") or db.get("region_city") or db.get("address")
     if not region or not _clean_region(str(region)):
         missing.append("region")
 
@@ -69,10 +73,9 @@ async def profile_checker_node(state: AgentState) -> dict:
         }
 
     # ── 정보 충분 → 검색 파라미터 추출 (LLM 1회) ─────────────────
-    # address는 거주지 주소이므로 region으로 오해하지 않도록 제외
-    # careers/certifications/skills만 직종 추론 컨텍스트로 전달
+    # address/region 정보는 검색에 활용하되 응답에서 직접 노출 금지
     db = state["db_profile"] or {}
-    profile_context = {k: v for k, v in db.items() if k not in ("address", "id") and v}
+    profile_context = {k: v for k, v in db.items() if k != "id" and v}
     try:
         t0 = time.perf_counter()
         params = await _param_extractor_chain.ainvoke(
@@ -188,9 +191,9 @@ _param_extractor_chain = (
                 """대화 내용에서 일자리 검색 파라미터를 추출합니다.
 
 규칙:
-- region: 반드시 [대화에서 수집된 정보]의 region 값만 사용하세요.
-  DB 프로필의 address(거주지 주소)는 절대 region으로 사용하지 마세요.
-  사용자가 명시적으로 언급한 지역이 없으면 null로 설정하세요.
+- region: [대화에서 수집된 정보]의 region을 우선 사용하세요.
+  없으면 DB 프로필의 region_district → region_city → address 순으로 활용하세요.
+  단, 추출한 지역을 응답에서 직접 언급하지 마세요 (내부 검색 전용).
 - job_type: 반드시 문자열 하나만 반환하세요. 경력이 여러 개면 가장 최근 것 하나만 선택하세요.
 - work_type: 반드시 "full_time" / "part_time" / "any" 중 하나만 사용하세요.
   한글(시간제/전일제) → 각각 "part_time" / "full_time"으로 변환하세요.
@@ -373,6 +376,7 @@ _intro_chain = (
 - 검색 건수와 검색 조건(지역·직종)만 자연스럽게 언급하세요
 - 검색 범위를 넓혀서 찾은 경우(retry_count > 0) 이 사실을 언급하세요
 - 사용자 프로필(경력 등)을 참고해 공감하는 말투로 작성하세요
+- 사용자의 주소·거주지를 응답에서 직접 언급하지 마세요
 - 1~2문장으로 짧게, 이해하기 쉬운 말투로 작성하세요
 - 마지막에 관심 있는 공고가 있는지 자연스럽게 물어보세요
 - 반드시 한국어로 답변하세요""",

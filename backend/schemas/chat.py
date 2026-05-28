@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List
 
 from pydantic import BaseModel, Field
 
@@ -16,3 +16,21 @@ class ChatResponseDTO(BaseModel):
     jobs: List[JobCard] = Field(
         default_factory=list, description="추천 공고 목록 (추천 시에만 채워짐, 그 외 빈 배열)"
     )
+
+
+class RecommendMoreRequest(BaseModel):
+    user_id: int = Field(..., gt=0, description="유저 ID")
+    exclude_job_ids: List[str] = Field(default_factory=list, description="제외할 공고 UUID 목록")
+
+
+class ChatMessageDTO(BaseModel):
+    id: int
+    role: str = Field(..., description="'user' | 'assistant'")
+    content: str
+    jobs: List[Dict[str, Any]] = Field(default_factory=list)
+    created_at: str
+
+
+class ChatHistoryDTO(BaseModel):
+    user_id: int
+    messages: List[ChatMessageDTO]

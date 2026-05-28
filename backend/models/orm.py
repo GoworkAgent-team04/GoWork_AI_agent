@@ -14,11 +14,9 @@ from typing import Optional
 from sqlalchemy import (
     BigInteger,
     Boolean,
-    CheckConstraint,
     Date,
     Float,
     Integer,
-    SmallInteger,
     String,
     Text,
     func,
@@ -88,15 +86,37 @@ class OtherSkill(Base):
     keyword: Mapped[str]
 
 
-class Feedback(Base):
-    __tablename__ = "feedbacks"
-    __table_args__ = (CheckConstraint("rating BETWEEN 1 AND 5", name="ck_feedbacks_rating"),)
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    reviewer_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    job_id: Mapped[Optional[str]]
-    rating: Mapped[Optional[int]] = mapped_column(SmallInteger)
-    comment: Mapped[Optional[str]] = mapped_column(Text)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    session_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    role: Mapped[str] = mapped_column(String(10), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    job_ids: Mapped[Optional[list]] = mapped_column(ARRAY(UUID(as_uuid=False)), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class ChatSearchParams(Base):
+    __tablename__ = "chat_search_params"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    session_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    region: Mapped[Optional[str]] = mapped_column(String(100))
+    job_type: Mapped[Optional[str]] = mapped_column(String(100))
+    work_type: Mapped[Optional[str]] = mapped_column(String(20))
+    physical_limit: Mapped[Optional[bool]] = mapped_column(Boolean)
+    salary_min: Mapped[Optional[int]] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
