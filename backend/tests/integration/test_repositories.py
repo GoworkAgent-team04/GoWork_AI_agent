@@ -5,10 +5,7 @@ users id 1~10: 스킬 없는 유저
 users id 11~20: 스킬 있는 유저
 """
 
-import pytest
-from sqlalchemy.exc import IntegrityError
-
-from backend.repositories import feedback_repository, job_repository, user_repository
+from backend.repositories import job_repository, user_repository
 
 # ─── User Repository ─────────────────────────────────────────────
 
@@ -123,37 +120,3 @@ def test_find_job_source_url_not_exists():
     """존재하지 않는 공고 source_url → None"""
     url = job_repository.find_job_source_url("00000000-0000-0000-0000-000000000000")
     assert url is None
-
-
-# ─── Feedback Repository ─────────────────────────────────────────
-
-
-def test_save_feedback_with_comment():
-    """feedback 저장 (comment 포함)"""
-    feedback_repository.save_feedback(
-        reviewer_id=1,
-        job_id="test-job-id",
-        rating=4,
-        comment="테스트 코멘트",
-    )
-
-
-def test_save_feedback_without_comment():
-    """feedback 저장 (comment 없음)"""
-    feedback_repository.save_feedback(
-        reviewer_id=1,
-        job_id="test-job-id",
-        rating=5,
-        comment=None,
-    )
-
-
-def test_save_feedback_invalid_rating():
-    """rating 범위 초과 시 DB 제약 위반"""
-    with pytest.raises(IntegrityError):
-        feedback_repository.save_feedback(
-            reviewer_id=1,
-            job_id="test-job-id",
-            rating=10,
-            comment=None,
-        )

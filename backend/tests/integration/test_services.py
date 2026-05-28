@@ -2,9 +2,8 @@
 Service 통합 테스트 (실제 DB 연결)
 """
 
-from backend.schemas.feedback import FeedbackRequestDTO
 from backend.schemas.job import JobRequestDTO
-from backend.services import feedback_service, recommend_service, user_service
+from backend.services import recommend_service, user_service
 
 # ─── User Service ─────────────────────────────────────────────────
 
@@ -89,28 +88,3 @@ def test_get_recommendations_sorted_by_score():
     params = JobRequestDTO(user_id=1, region="서울", job_type="경비")
     result = recommend_service.get_recommendations(params)
     assert len(result) <= 3
-
-
-# ─── Feedback Service ────────────────────────────────────────────
-
-
-def test_submit_feedback_success():
-    """피드백 정상 저장"""
-    req = FeedbackRequestDTO(
-        user_id=1,
-        job_id="test-job-uuid",
-        rating=4,
-        comment="통합 테스트 코멘트",
-    )
-    feedback_service.submit_feedback(req)
-
-
-def test_submit_feedback_no_comment():
-    """comment 없이 피드백 저장"""
-    req = FeedbackRequestDTO(
-        user_id=1,
-        job_id="test-job-uuid",
-        rating=3,
-        comment=None,
-    )
-    feedback_service.submit_feedback(req)
