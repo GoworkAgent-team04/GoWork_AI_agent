@@ -32,6 +32,33 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _extract_region_from_address(address: str) -> str | None:
+    """
+    전체 주소 문자열에서 검색에 적합한 지역명을 추출합니다.
+    "인천광역시 남동구 간석동" → "남동구"
+    "경기도 수원시 팔달구" → "팔달구"
+    "서울특별시 강남구" → "강남구"
+    """
+    if not address:
+        return None
+    parts = address.split()
+    # 구/군 우선 추출
+    for part in parts:
+        if part.endswith("구") or part.endswith("군"):
+            return part
+    # 구/군 없으면 시 추출 (광역시/특별시 제외)
+    for part in parts:
+        if part.endswith("시") and not any(
+            part.endswith(s) for s in ("광역시", "특별시", "특별자치시")
+        ):
+            return part
+    # 도/광역시/특별시 레벨만 있으면 그대로 반환
+    for part in parts:
+        if part.endswith(("도", "광역시", "특별시", "특별자치도")):
+            return part
+    return parts[0] if parts else None
+
+
 def _check_region_sufficient(collected_info: dict, db_profile: dict) -> tuple[bool, list]:
     """
     region 충족 여부를 코드로 판단 (LLM 불필요).
@@ -45,7 +72,12 @@ def _check_region_sufficient(collected_info: dict, db_profile: dict) -> tuple[bo
     # ── region 확인 (필수) ───────────────────────────────────────
     region = collected.get("region")
     if not region or not _clean_region(str(region)):
-        region = db.get("region_district") or db.get("region_city") or db.get("address")
+        region = db.get("region_district") or db.get("region_city")
+        if not region:
+            # address 전체 문자열에서 구/시 단위 추출
+            address = db.get("address")
+            if address:
+                region = _extract_region_from_address(str(address))
     if not region or not _clean_region(str(region)):
         missing.append("region")
 
@@ -242,7 +274,7 @@ async def job_searcher_node(state: AgentState) -> dict:
             resp = await client.get(
                 f"{config.API_BASE_URL}/recommend",
                 params=api_params,
-                timeout=10.0,
+                timeout=30.0,
             )
             if resp.status_code == 200:
                 jobs = resp.json().get("jobs", [])
