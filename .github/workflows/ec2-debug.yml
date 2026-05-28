@@ -2,16 +2,56 @@ name: EC2 Debug & Recovery
 
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: '실행할 작업'
+        required: true
+        type: choice
+        options:
+          - debug-only
+          - recover
 
 jobs:
   debug:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check and recover EC2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Check EC2 status
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          command_timeout: 2m
+          script: |
+            echo "===== 디스크 상태 ====="
+            df -h
+
+            echo "===== 컨테이너 상태 ====="
+            docker ps -a | grep gowork || echo "gowork-app 컨테이너 없음"
+
+            echo "===== 최근 로그 (50줄) ====="
+            docker logs gowork-app --tail 50 2>&1 || echo "로그 없음"
+
+            echo "===== 메모리 상태 ====="
+            free -h
+
+      - name: Recover EC2 (only when action=recover)
+        if: ${{ inputs.action == 'recover' }}
         uses: appleboy/ssh-action@v1
         env:
-          ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -24,26 +64,20 @@ jobs:
           envs: ECR_REGISTRY,ECR_REPOSITORY,AWS_REGION,DATABASE_URL,GROQ_API_KEY,API_BASE_URL
           command_timeout: 5m
           script: |
-            echo "===== 디스크 상태 ====="
-            df -h
-
-            echo "===== 컨테이너 상태 ====="
-            docker ps -a | grep gowork || echo "gowork-app 컨테이너 없음"
-
-            echo "===== 최근 로그 ====="
-            docker logs gowork-app --tail 30 2>&1 || echo "로그 없음"
-
-            echo "===== 복구 시작 ====="
+            IMAGE="$ECR_REGISTRY/$ECR_REPOSITORY:latest"
             DATABASE_URL=$(echo "$DATABASE_URL" | tr -d '\n\r')
             GROQ_API_KEY=$(echo "$GROQ_API_KEY" | tr -d '\n\r')
             API_BASE_URL=$(echo "$API_BASE_URL" | tr -d '\n\r')
 
-            docker system prune -af --volumes || true
+            echo "===== 복구 시작 ====="
+
+            # 사용하지 않는 이미지만 정리 (실행 중인 컨테이너 이미지는 유지)
+            docker image prune -f || true
 
             aws ecr get-login-password --region "$AWS_REGION" | \
               docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
-            docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+            docker pull "$IMAGE"
 
             docker stop gowork-app || true
             docker rm gowork-app || true
@@ -60,7 +94,7 @@ jobs:
               --log-opt awslogs-region="$AWS_REGION" \
               --log-opt awslogs-group=/gowork/app \
               --log-opt awslogs-create-group=true \
-              "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+              "$IMAGE"
 
             sleep 15
             echo "===== 복구 후 상태 ====="
