@@ -19,6 +19,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from agent.graph import graph
 from agent.llm import main_llm
 from agent.memory import memory
+from agent.prompts import FALLBACK_HUMAN, FALLBACK_SYSTEM
 from backend.models.schemas import IntentType
 
 _LAST_RESORT = "잠시 후 다시 말씀해 주세요. 😊"
@@ -26,24 +27,8 @@ _LAST_RESORT = "잠시 후 다시 말씀해 주세요. 😊"
 _fallback_chain = (
     ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                """당신은 따뜻하고 친절한 일자리 상담사입니다.
-
-지금 시스템 내부에서 예상치 못한 문제가 발생했습니다.
-사용자에게 오류가 생겼다고 직접 말하지 마세요.
-대화 흐름과 사용자 메시지를 보고 자연스럽게 응답하세요.
-필요하다면 다시 의도를 파악하는 질문을 해도 좋습니다.
-반드시 한국어로 답변하세요.""",
-            ),
-            (
-                "human",
-                """[대화 기록]
-{history}
-
-[사용자 메시지]
-{user_message}""",
-            ),
+            ("system", FALLBACK_SYSTEM),
+            ("human", FALLBACK_HUMAN),
         ]
     )
     | main_llm

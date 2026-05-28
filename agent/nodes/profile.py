@@ -17,6 +17,12 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from agent.llm import fast_llm, main_llm
 from agent.parsers import RobustPydanticParser
+from agent.prompts import (
+    PROFILE_ACTION_HUMAN,
+    PROFILE_ACTION_SYSTEM,
+    PROFILE_RESPONSE_HUMAN,
+    PROFILE_RESPONSE_SYSTEM,
+)
 from agent.state import AgentState
 from backend.database.queries import _map_job_category, get_user_profile, update_user_profile
 from backend.models.schemas import ActionType, ProfileAction
@@ -73,33 +79,8 @@ _action_classifier_parser = RobustPydanticParser(pydantic_object=ProfileAction)
 _action_classifier_chain = (
     ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                """사용자의 메시지를 아래 세 가지로 분류하세요.
-
-READ    : 본인 프로필 정보 조회 요청
-          예) "내 정보 보여줘", "내 프로필 확인"
-
-UPDATE  : 특정 필드를 명시적으로 수정 요청
-          예) "지역을 서울로 바꿔줘", "직종을 청소로 수정해줘"
-          → field(DB 컬럼명)와 value도 추출
-          수정 가능한 field: region_city, region_district, preferred_job_category,
-                            preferred_work_type, physical_level, career_type, experience_desc
-
-COLLECT : 대화 중 자연스럽게 개인 정보를 언급하는 경우
-          예) "저는 서울 강남구에 살아요", "무릎이 좀 불편해서요",
-              "시간제로만 일할 수 있어요", "예전에 경비 일 해봤어요"
-
-{format_instructions}""",
-            ),
-            (
-                "human",
-                """[대화 기록]
-{history}
-
-[사용자 메시지]
-{user_message}""",
-            ),
+            ("system", PROFILE_ACTION_SYSTEM),
+            ("human", PROFILE_ACTION_HUMAN),
         ]
     )
     | fast_llm
@@ -111,30 +92,8 @@ COLLECT : 대화 중 자연스럽게 개인 정보를 언급하는 경우
 _response_chain = (
     ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                """당신은 친절한 일자리 상담사입니다.
-프로필 관련 처리 결과를 상황에 맞게 안내하세요.
-
-READ    → 핵심 정보만 보기 좋게 정리해서 보여주세요
-UPDATE  → 변경된 내용을 확인해주고 격려해주세요
-COLLECT → 사용자가 언급한 정보를 자연스럽게 확인하는 한 문장만 말하세요.
-          딱딱하게 "저장했습니다" 같은 말은 하지 말고, 대화 흐름에 녹여주세요.
-          예) "강남구 쪽에서 일하실 수 있군요, 참고할게요 😊"
-              "몸이 불편하신 부분이 있으시군요, 가벼운 업무 위주로 찾아드릴게요"
-- 반드시 한국어로 답변하세요""",
-            ),
-            (
-                "human",
-                """[작업 유형]
-{action_type}
-
-[처리 결과]
-{result}
-
-[사용자 메시지]
-{user_message}""",
-            ),
+            ("system", PROFILE_RESPONSE_SYSTEM),
+            ("human", PROFILE_RESPONSE_HUMAN),
         ]
     )
     | main_llm

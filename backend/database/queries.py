@@ -182,6 +182,14 @@ def search_jobs(params: Dict[str, Any]) -> List[Dict]:
         if params.get("physical_limit") is True:
             query += " AND (jp.physical_level IN ('LOW', 'MID') OR jp.physical_level IS NULL)"
 
+        # 이미 추천된 공고 제외 (refresh_jobs 액션)
+        exclude_ids = params.get("exclude_ids") or []
+        if exclude_ids:
+            placeholders = ", ".join(f":excl_{i}" for i in range(len(exclude_ids)))
+            query += f" AND jp.id NOT IN ({placeholders})"
+            for i, eid in enumerate(exclude_ids):
+                query_params[f"excl_{i}"] = eid
+
         # 근무 형태 / 급여 필터는 해당 컬럼이 NULL이므로 현재 스킵
 
         query += f" ORDER BY jp.collected_at DESC LIMIT {config.MAX_JOB_RESULTS}"
