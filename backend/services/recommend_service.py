@@ -9,6 +9,9 @@ from backend.scoring.category import encode_text
 
 TOP_N = 3
 
+# user_id → 마지막 검색 파라미터 캐시 (recommend-more 재활용용)
+_last_params_cache: Dict[str, Dict[str, Any]] = {}
+
 
 def _to_job_card(job: Dict[str, Any]) -> JobCard:
     """DB row → JobCard 변환"""
@@ -65,16 +68,35 @@ def _batch_job_type_similarities(
     return sims
 
 
-def get_recommendations(params: JobRequestDTO) -> List[JobCard]:
+def get_last_params(user_id: str) -> Optional[JobRequestDTO]:
+    """마지막 추천 파라미터 반환 (없으면 None)."""
+    cached = _last_params_cache.get(user_id)
+    if not cached:
+        return None
+    return JobRequestDTO(**cached)
+
+
+def get_recommendations(
+    params: JobRequestDTO,
+    exclude_ids: Optional[List[str]] = None,
+) -> List[JobCard]:
     """
     지역 기반 필터링 후 임베딩 배치 유사도 기준 top3 공고를 반환합니다.
 
     처리 순서:
         1. region + physical_limit으로 DB 필터링 (전체 조회, limit 없음)
-        2. 직종 유사도 배치 계산 (저장된 임베딩 활용)
-        3. 다중 가중치 원점수 계산 후 정규화
-        4. TOP_N 반환
+        2. exclude_ids 제외
+        3. 직종 유사도 배치 계산 (저장된 임베딩 활용)
+        4. 다중 가중치 원점수 계산 후 정규화
+        5. TOP_N 반환
     """
+    # 파라미터 캐시 저장 (recommend-more 재활용용)
+    try:
+        user_id = str(getattr(params, "user_id", None) or "unknown")
+        _last_params_cache[user_id] = params.model_dump()
+    except Exception:
+        pass
+
     raw_jobs = job_repository.search_jobs(
         {
             "region": params.region,
@@ -84,6 +106,13 @@ def get_recommendations(params: JobRequestDTO) -> List[JobCard]:
             "salary_min": params.salary_min,
         }
     )
+
+    if not raw_jobs:
+        return []
+
+    if exclude_ids:
+        exclude_set = set(exclude_ids)
+        raw_jobs = [j for j in raw_jobs if str(j["id"]) not in exclude_set]
 
     if not raw_jobs:
         return []

@@ -53,22 +53,6 @@ CREATE TABLE IF NOT EXISTS other_skills (
     keyword      varchar(100) NOT NULL   -- 협상능력, 리더십 …
 );
 
-CREATE TABLE IF NOT EXISTS user_ratings (
-    id           bigserial    PRIMARY KEY,
-    reviewer_id  bigint       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    score        smallint     NOT NULL CHECK (score BETWEEN 1 AND 5),
-    category     varchar(20)  NOT NULL,  -- 성실성 | 전문성 | 소통능력
-    rated_at     timestamp    NOT NULL DEFAULT now()
-);
-
-CREATE TABLE IF NOT EXISTS feedbacks (
-    id           bigserial    PRIMARY KEY,
-    reviewer_id  bigint       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    job_id       varchar(36),
-    rating       smallint     CHECK (rating BETWEEN 1 AND 5),
-    comment      text        DEFAULT NULL,
-    created_at   timestamp    NOT NULL DEFAULT now()
-);
 
 
 CREATE TABLE IF NOT EXISTS job_posting (
@@ -126,8 +110,42 @@ CREATE TABLE IF NOT EXISTS job_contact (
 );
 
 
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id         bigserial   PRIMARY KEY,
+    user_id    bigint      NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at timestamp   NOT NULL DEFAULT now(),
+    updated_at timestamp   NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id         bigserial   PRIMARY KEY,
+    session_id bigint      NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+    role       varchar(10) NOT NULL,   -- 'user' | 'assistant'
+    content    text        NOT NULL,
+    job_ids    uuid[]      DEFAULT NULL,
+    created_at timestamp   NOT NULL DEFAULT now()
+);
+
+
+CREATE TABLE IF NOT EXISTS chat_search_params (
+    id             bigserial   PRIMARY KEY,
+    session_id     bigint      NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+    user_id        bigint      NOT NULL,
+    region         varchar(100),
+    job_type       varchar(100),
+    work_type      varchar(20),
+    physical_limit boolean,
+    salary_min     int,
+    created_at     timestamp   NOT NULL DEFAULT now()
+);
+
+
 -- ─── 2. 인덱스 ──────────────────────────────────────────────────
 
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id    ON chat_sessions (user_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages (session_id);
+CREATE INDEX IF NOT EXISTS idx_chat_search_params_session_id ON chat_search_params (session_id);
+CREATE INDEX IF NOT EXISTS idx_chat_search_params_user_id    ON chat_search_params (user_id);
 CREATE INDEX IF NOT EXISTS idx_careers_user_id         ON careers (user_id);
 CREATE INDEX IF NOT EXISTS idx_certifications_user_id  ON certifications (user_id);
 CREATE INDEX IF NOT EXISTS idx_language_skills_user_id ON language_skills (user_id);
