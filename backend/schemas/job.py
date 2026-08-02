@@ -35,3 +35,9 @@ class JobCard(BaseModel):
 class JobResponseDTO(BaseModel):
     user_id: int = Field(..., description="유저 ID")
     jobs: List[JobCard] = Field(default_factory=list, description="추천 공고 top3")
+
+
+class JobClickRequestDTO(BaseModel):
+    user_id: int = Field(..., gt=0, description="유저 ID")
+    job_id: str = Field(..., min_length=1, description="공고 ID")
+    event_type: str = Field(..., min_length=1, description="이벤트 타입 (예: apply_click)")

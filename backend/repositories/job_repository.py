@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import or_
 
 from backend.database.connection import get_db
-from backend.models.orm import JobContact, JobPosting
+from backend.models.orm import JobClick, JobContact, JobPosting
 
 # 워크넷 work_type_raw 코드 → 표시 문자열 매핑
 _WORK_TYPE_RAW_MAP = {
@@ -83,6 +83,14 @@ def find_job_source_url(job_id: str) -> Optional[str]:
     with get_db() as db:
         posting = db.get(JobPosting, job_id)
         return posting.source_url if posting else None
+
+
+def save_job_click(user_id: int, job_id: str, event_type: str) -> None:
+    """지원하기 버튼 클릭 로그를 저장합니다."""
+    with get_db() as db:
+        click = JobClick(user_id=user_id, job_id=job_id, event_type=event_type)
+        db.add(click)
+        db.commit()
 
 
 def _posting_to_dict(p: JobPosting) -> Dict[str, Any]:

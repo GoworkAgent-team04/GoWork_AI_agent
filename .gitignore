@@ -36,3 +36,6 @@ logs/
 *.sqlite3
 
 BACKEND_CODE_GUIDE.md
+
+# 수정사항 문서
+*.pdf

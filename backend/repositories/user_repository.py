@@ -4,6 +4,16 @@ from backend.database.connection import get_db
 from backend.models.orm import Career, Certification, DocumentSkill, LanguageSkill, OtherSkill, User
 
 
+def create_user(name: str, age: int, phone: str, address: str) -> int:
+    """사용자를 생성하고 생성된 user_id를 반환합니다."""
+    with get_db() as db:
+        user = User(name=name, age=age, phone=phone, address=address)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        return user.id
+
+
 def find_user_by_id(user_id: int) -> Optional[Dict[str, Any]]:
     """users 테이블에서 기본 정보를 조회합니다."""
     with get_db() as db:

@@ -30,7 +30,7 @@ from backend.database.connection import Base
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     name: Mapped[str]
     age: Mapped[Optional[int]]
     phone: Mapped[Optional[str]]
@@ -168,6 +168,16 @@ class JobPosting(Base):
     embedding: Mapped[Optional[list]] = mapped_column(ARRAY(Float), nullable=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class JobClick(Base):
+    __tablename__ = "job_clicks"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    job_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
 class JobContact(Base):
