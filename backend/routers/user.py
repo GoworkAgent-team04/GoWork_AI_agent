@@ -1,9 +1,25 @@
 from fastapi import APIRouter, HTTPException, Path
 
-from backend.schemas.user import UserResponseDTO
+from backend.repositories import user_repository
+from backend.schemas.user import UserCreateRequestDTO, UserCreateResponseDTO, UserResponseDTO
 from backend.services import user_service
 
 router = APIRouter(tags=["User"])
+
+
+@router.post("/users", response_model=UserCreateResponseDTO, summary="사용자 생성")
+async def create_user(req: UserCreateRequestDTO):
+    """
+    이름 / 나이 / 전화번호 / 주소를 입력받아 사용자를 생성하고
+    생성된 user_id를 반환합니다.
+    """
+    user_id = user_repository.create_user(
+        name=req.name,
+        age=req.age,
+        phone=req.phone,
+        address=req.address,
+    )
+    return UserCreateResponseDTO(user_id=user_id)
 
 
 @router.get("/users/{user_id}", response_model=UserResponseDTO, summary="유저 정보 조회")

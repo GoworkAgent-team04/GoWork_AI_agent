@@ -8,6 +8,17 @@ class UserRequestDTO(BaseModel):
     user_id: int = Field(..., gt=0, description="유저 ID")
 
 
+class UserCreateRequestDTO(BaseModel):
+    name: str = Field(..., min_length=1, max_length=50, description="이름")
+    age: int = Field(..., gt=0, description="나이")
+    phone: str = Field(..., min_length=1, max_length=20, description="전화번호")
+    address: str = Field(..., min_length=1, max_length=200, description="주소")
+
+
+class UserCreateResponseDTO(BaseModel):
+    user_id: int
+
+
 class CareerInfo(BaseModel):
     company_name: str
     job_title: str
