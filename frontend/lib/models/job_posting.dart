@@ -9,7 +9,7 @@ class JobPosting {
   final String? deadline;
   final String? sourceUrl;
   final String? physicalLevel;
-  final bool? seniorTag;
+  final String? seniorTag;
   final int? ageMin;
   final int? ageMax;
 

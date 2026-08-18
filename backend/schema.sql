@@ -140,6 +140,15 @@ CREATE TABLE IF NOT EXISTS chat_search_params (
 );
 
 
+CREATE TABLE IF NOT EXISTS job_clicks (
+    id           bigserial    PRIMARY KEY,
+    user_id      bigint       NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    job_id       varchar(100) NOT NULL,
+    event_type   varchar(30)  NOT NULL,
+    created_at   timestamp    NOT NULL DEFAULT now()
+);
+
+
 -- ─── 2. 인덱스 ──────────────────────────────────────────────────
 
 CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id    ON chat_sessions (user_id);
