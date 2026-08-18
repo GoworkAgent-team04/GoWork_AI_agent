@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../constants/app_colors.dart';
 import '../models/job_posting.dart';
-import 'package:url_launcher/url_launcher.dart';
+import '../providers/chat_provider.dart';
 
 class JobCard extends StatelessWidget {
   final JobPosting job;
@@ -11,6 +15,37 @@ class JobCard extends StatelessWidget {
     super.key,
     required this.job,
   });
+
+  Future<void> _handleApplyClick(BuildContext context) async {
+    final url = job.sourceUrl;
+
+    // 지원하기 버튼을 눌렀다는 사실을 백엔드에 전송
+    // API 전송이 끝날 때까지 링크 열기를 막지 않도록 비동기로 실행
+    unawaited(
+      context.read<ChatProvider>().recordApplyClick(job.id),
+    );
+
+    // 공고 URL이 없으면 클릭 로그만 전송하고 종료
+    if (url == null || url.isEmpty) {
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+
+    if (uri == null) {
+      debugPrint('[지원하기] 잘못된 공고 URL: $url');
+      return;
+    }
+
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!launched) {
+      debugPrint('[지원하기] 공고 URL을 열 수 없습니다: $url');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,16 +105,7 @@ class JobCard extends StatelessWidget {
             right: 0,
             top: 0,
             child: ElevatedButton(
-              onPressed: () async {
-                final url = job.sourceUrl;
-                if (url == null || url.isEmpty) return;
-
-                final uri = Uri.parse(url);
-                await launchUrl(
-                  uri,
-                  mode: LaunchMode.externalApplication,
-                );
-              },
+              onPressed: () => _handleApplyClick(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
@@ -90,7 +116,7 @@ class JobCard extends StatelessWidget {
                 ),
               ),
               child: const Text(
-                '공고 보기',
+                '지원하기',
                 style: TextStyle(fontSize: 12),
               ),
             ),
