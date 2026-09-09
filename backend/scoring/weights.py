@@ -9,8 +9,8 @@ from dataclasses import dataclass
 
 @dataclass
 class Weights:
-    job_type: float = 0.35
+    job_type: float = 0.40
     physical_level: float = 0.25
     work_type: float = 0.20
-    salary_min: float = 0.20
-    senior_tag: float = 0.20
+    salary_min: float = 0.10
+    senior_tag: float = 0.05
