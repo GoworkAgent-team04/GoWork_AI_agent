@@ -13,8 +13,8 @@ class Config:
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
 
     # 모델 설정 (Groq)
-    MAIN_MODEL: str = "llama-3.3-70b-versatile"  # 최종 응답용 (고품질)
-    FAST_MODEL: str = "llama-3.1-8b-instant"  # 분류/추출용 (빠름)
+    MAIN_MODEL: str = "openai/gpt-oss-120b"  # 최종 응답용 (고품질)
+    FAST_MODEL: str = "openai/gpt-oss-20b"  # 분류/추출용 (빠름)
 
     # 온도 설정
     MAIN_TEMPERATURE: float = 0.7
